@@ -633,11 +633,9 @@ trip_point_temp_set(struct device *dev, struct device_attribute *attr,
 	if (!sscanf(buf, "%ld", &temperature))
 		return -EINVAL;
 
-	ret = sensor_set_trip_temp(tz, trip, temperature);
-
+	ret = tz->ops->set_trip_temp(tz, trip, temperature);
 	if (ret)
 		return ret;
-
 	return count;
 }
 
