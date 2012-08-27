@@ -693,6 +693,7 @@ static void tsens_scheduler_fn(struct work_struct *work)
 static irqreturn_t tsens_isr(int irq, void *data)
 {
 	queue_work(tmdev->tsens_wq, &tmdev->tsens_work);
+	schedule_work(&tmdev->tsens_work);
 
 	return IRQ_HANDLED;
 }
