@@ -348,8 +348,13 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	 * hasn't changed since we received the original syn, but I see
 	 * no easy way to do this.
 	 */
+<<<<<<< HEAD
 	flowi4_init_output(&fl4, 0, ireq->ir_mark, RT_CONN_FLAGS(sk),
 			   RT_SCOPE_UNIVERSE, IPPROTO_TCP,
+=======
+	flowi4_init_output(&fl4, sk->sk_bound_dev_if, sk->sk_mark,
+			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE, IPPROTO_TCP,
+>>>>>>> 1de8e93... Linux 3.4.41 - 3.4.50
 			   inet_sk_flowi_flags(sk),
 			   (opt && opt->srr) ? opt->faddr : ireq->rmt_addr,
 			   ireq->loc_addr, th->source, th->dest,
