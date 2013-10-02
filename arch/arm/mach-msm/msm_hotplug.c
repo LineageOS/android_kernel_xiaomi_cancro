@@ -20,7 +20,7 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/cpufreq.h>
-#include <linux/lcd_notify.h>
+#include "linux/lcd_notify.h"
 #include <linux/input.h>
 #include <linux/math64.h>
 #include <linux/kernel_stat.h>
