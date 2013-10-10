@@ -1451,6 +1451,8 @@ extern int usb_anchor_empty(struct usb_anchor *anchor);
 
 #define usb_unblock_urb			usb_unpoison_urb
 
+#define usb_unblock_urb	usb_unpoison_urb
+
 /**
  * usb_urb_dir_in - check if an URB describes an IN transfer
  * @urb: URB to be checked
