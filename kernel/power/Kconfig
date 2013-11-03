@@ -15,8 +15,14 @@ config SUSPEND_FREEZER
 	help
 	  This allows you to turn off the freezer for suspend. If this is
 	  done, no tasks are frozen for suspend to RAM/standby.
-
 	  Turning OFF this setting is NOT recommended! If in doubt, say Y.
+
+config POWERSUSPEND
+	bool "Power suspend"
+	default n
+	---help---
+	  Call early suspend handlers when the user requested sleep state
+	  changes.
 
 config HIBERNATE_CALLBACKS
 	bool
