@@ -195,8 +195,8 @@ ENTRY(v4wt_dma_map_area)
 ENDPROC(v4wt_dma_unmap_area)
 ENDPROC(v4wt_dma_map_area)
 
-	.globl	v4wt_flush_kern_cache_louis
-	.equ	v4wt_flush_kern_cache_louis, v4wt_flush_kern_cache_all
+	.globl  v4wt_flush_kern_cache_louis
+	.equ  v4wt_flush_kern_cache_louis, v4wt_flush_kern_cache_all
 
 	__INITDATA
 

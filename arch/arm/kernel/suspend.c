@@ -31,13 +31,13 @@ void __cpu_suspend_save(u32 *ptr, u32 ptrsz, u32 sp, u32 *save_ptr)
 	flush_cache_louis();
 
 	/*
-	 * flush_cache_louis does not guarantee that
-	 * save_ptr and ptr are cleaned to main memory,
-	 * just up to the Level of Unification Inner Shareable.
-	 * Since the context pointer and context itself
-	 * are to be retrieved with the MMU off that
-	 * data must be cleaned from all cache levels
-	 * to main memory using "area" cache primitives.
+	* flush_cache_louis does not guarantee that
+	* save_ptr and ptr are cleaned to main memory,
+	* just up to the Level of Unification Inner Shareable.
+	* Since the context pointer and context itself
+	* are to be retrieved with the MMU off that
+	* data must be cleaned from all cache levels
+	* to main memory using "area" cache primitives.
 	*/
 	__cpuc_flush_dcache_area(ctx, ptrsz);
 	__cpuc_flush_dcache_area(save_ptr, sizeof(*save_ptr));
