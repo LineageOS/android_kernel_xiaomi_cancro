@@ -42,6 +42,7 @@
 #include <mach/scm.h>
 #include <linux/sched.h>
 
+
 #define MAX_CURRENT_UA 1000000
 #define MAX_RAILS 5
 #define MAX_THRESHOLD 2
@@ -1323,6 +1324,7 @@ static void check_temp(struct work_struct *work)
 
 	if (!msm_thermal_probed)
 		return;
+
 
 	do_therm_reset();
 
