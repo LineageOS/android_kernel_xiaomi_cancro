@@ -181,6 +181,9 @@ void set_power_suspend_state_autosleep_hook(int new_state)
 #endif
 	// Only allow autosleep hook changes in autosleep & hybrid mode
 	if (mode == POWER_SUSPEND_AUTOSLEEP || mode == POWER_SUSPEND_HYBRID)
+
+	if ((mode == POWER_SUSPEND_AUTOSLEEP) || ((mode == POWER_SUSPEND_PANEL) && (new_state == POWER_SUSPEND_INACTIVE)))
+		// arter97: allow hooks from autosleep to make powersuspend inactive with panel mode
 		set_power_suspend_state(new_state);
 }
 
@@ -193,6 +196,13 @@ void set_power_suspend_state_panel_hook(int new_state)
 	#endif
 	// Only allow autosleep hook changes in autosleep & hybrid mode
 	if (mode == POWER_SUSPEND_AUTOSLEEP || mode == POWER_SUSPEND_HYBRID)
+
+#ifdef POWER_SUSPEND_DEBUG
+	pr_warn("power_suspend: panel resquests %s.\n",
+		new_state == POWER_SUSPEND_ACTIVE ? "sleep" : "wakeup");
+#endif
+	if ((mode == POWER_SUSPEND_PANEL) && (new_state == POWER_SUSPEND_ACTIVE))
+		// arter97: only allow making powersuspend active with panel mode
 		set_power_suspend_state(new_state);
 }
 
