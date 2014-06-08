@@ -358,7 +358,7 @@ static void cpu_down_work(struct work_struct *work)
 			continue;
 		lowest_cpu = get_lowest_load_cpu();
 		if (lowest_cpu > 0) {
-			if (check_down_lock(cpu))
+			if (check_down_lock(lowest_cpu))
 				break;
 			cpu_down(lowest_cpu);
 		}
