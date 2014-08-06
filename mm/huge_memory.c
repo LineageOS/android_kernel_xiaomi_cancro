@@ -1354,6 +1354,8 @@ static int __split_huge_page_map(struct page *page,
 	if (pmd) {
 		pgtable = get_pmd_huge_pte(mm);
 		pmd_populate(mm, &_pmd, pgtable);
+		if (pmd_write(*pmd))
+			BUG_ON(page_mapcount(page) != 1);
 
 		for (i = 0, haddr = address; i < HPAGE_PMD_NR;
 		     i++, haddr += PAGE_SIZE) {
@@ -1368,8 +1370,6 @@ static int __split_huge_page_map(struct page *page,
 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
 			if (!pmd_write(*pmd))
 				entry = pte_wrprotect(entry);
-			else
-				BUG_ON(page_mapcount(page) != 1);
 			if (!pmd_young(*pmd))
 				entry = pte_mkold(entry);
 			pte = pte_offset_map(&_pmd, haddr);
