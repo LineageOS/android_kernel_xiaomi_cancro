@@ -137,6 +137,7 @@ int check_wakeup_reason(int irq)
 	return ret;
 }
 
+
 void log_suspend_abort_reason(const char *fmt, ...)
 {
 	va_list args;
