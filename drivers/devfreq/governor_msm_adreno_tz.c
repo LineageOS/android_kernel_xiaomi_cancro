@@ -160,6 +160,15 @@ static int tz_get_target_freq(struct devfreq *devfreq, unsigned long *freq,
 		frame_flag = 0;
 	}
 
+	if ((stats.busy_time * 100 / stats.total_time) > BUSY_BIN) {
+		busy_bin += stats.busy_time;
+		if (stats.total_time > LONG_FRAME)
+			frame_flag = 1;
+	} else {
+		busy_bin = 0;
+		frame_flag = 0;
+	}
+
 	level = devfreq_get_freq_level(devfreq, stats.current_frequency);
 
 	if (level < 0) {
