@@ -55,6 +55,7 @@
 #include <linux/pipe_fs_i.h>
 #include <linux/oom.h>
 #include <linux/compat.h>
+#include <linux/ksm.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -89,6 +90,7 @@ void __register_binfmt(struct linux_binfmt * fmt, int insert)
 	insert ? list_add(&fmt->lh, &formats) :
 		 list_add_tail(&fmt->lh, &formats);
 	write_unlock(&binfmt_lock);
+	return 0;
 }
 
 EXPORT_SYMBOL(__register_binfmt);
@@ -1327,6 +1329,7 @@ static void bprm_fill_uid(struct linux_binprm *bprm)
 		bprm->cred->egid = gid;
 	}
 }
+
 
 /*
  * Fill the binprm structure from the inode.
