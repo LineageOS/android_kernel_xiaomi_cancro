@@ -808,6 +808,238 @@ static void wcd9xxx_cfg_clsh_param_hph(struct snd_soc_codec *codec)
 			 __func__);
 }
 
+static void wcd9xxx_ncp_bypass_enable(struct snd_soc_codec *cdc, bool enable)
+{
+	snd_soc_update_bits(cdc, WCD9XXX_A_NCP_STATIC, 0x10, (enable << 4));
+	/* 50us sleep is reqd. as per the class H HW design sequence */
+	usleep_range(BUCK_SETTLE_TIME_US, BUCK_SETTLE_TIME_US+10);
+}
+
+static void wcd9xxx_clsh_set_Iest(struct snd_soc_codec *codec,
+		u8 value)
+{
+	snd_soc_update_bits(codec, WCD9XXX_A_BUCK_MODE_5,
+				    0x01, (0x01 & 0x03));
+	snd_soc_update_bits(codec, WCD9XXX_A_BUCK_MODE_5,
+				    0xFC, (value << 2));
+}
+
+static void wcd9xxx_clsh_state_hph_ear(struct snd_soc_codec *codec,
+			struct wcd9xxx_clsh_cdc_data *clsh_d,
+			u8 req_state, bool is_enable)
+{
+	int compute_pa = 0;
+
+	dev_dbg(codec->dev, "%s: enter %s\n", __func__,
+			is_enable ? "enable" : "disable");
+
+	if (is_enable) {
+		/*
+		 * The below check condition is required to make sure
+		 * functions inside if condition will execute only once.
+		 */
+		if ((clsh_d->state == WCD9XXX_CLSH_STATE_EAR) ||
+			(req_state == WCD9XXX_CLSH_STATE_EAR)) {
+			wcd9xxx_dynamic_bypass_buck_ctrl(codec, false);
+			wcd9xxx_ncp_bypass_enable(codec, true);
+		}
+		switch (req_state) {
+		case WCD9XXX_CLSH_STATE_HPHL:
+			compute_pa = CLSH_COMPUTE_HPH_L;
+			break;
+		case WCD9XXX_CLSH_STATE_HPHR:
+			compute_pa = CLSH_COMPUTE_HPH_R;
+			break;
+		case WCD9XXX_CLSH_STATE_EAR:
+			compute_pa = CLSH_COMPUTE_EAR;
+			break;
+		default:
+			dev_dbg(codec->dev,
+				"%s:Invalid state:0x%x,enable:0x%x\n",
+				__func__, req_state, is_enable);
+			break;
+		}
+		wcd9xxx_clsh_comp_req(codec, clsh_d, compute_pa, true);
+
+		dev_dbg(codec->dev, "%s: Enabled hph+ear mode clsh\n",
+				__func__);
+	} else {
+		switch (req_state) {
+		case WCD9XXX_CLSH_STATE_HPHL:
+			compute_pa = CLSH_COMPUTE_HPH_L;
+			break;
+		case WCD9XXX_CLSH_STATE_HPHR:
+			compute_pa = CLSH_COMPUTE_HPH_R;
+			break;
+		case WCD9XXX_CLSH_STATE_EAR:
+			compute_pa = CLSH_COMPUTE_EAR;
+			break;
+		default:
+			dev_dbg(codec->dev,
+				"%s:Invalid state:0x%x,enable:0x%x\n",
+				__func__, req_state, is_enable);
+			break;
+		}
+		wcd9xxx_clsh_comp_req(codec, clsh_d, compute_pa, false);
+
+		if (((clsh_d->state & (~req_state)) ==
+				WCD9XXX_CLSH_STATE_EAR) ||
+			(req_state == WCD9XXX_CLSH_STATE_EAR)) {
+			wcd9xxx_ncp_bypass_enable(codec, false);
+			wcd9xxx_dynamic_bypass_buck_ctrl(codec, true);
+		}
+	}
+}
+
+static void wcd9xxx_clsh_state_hph_lo(struct snd_soc_codec *codec,
+			struct wcd9xxx_clsh_cdc_data *clsh_d,
+			u8 req_state, bool is_enable)
+{
+
+	dev_dbg(codec->dev, "%s: enter %s\n", __func__,
+			is_enable ? "enable" : "disable");
+	if (is_enable) {
+		if ((clsh_d->state == WCD9XXX_CLSH_STATE_LO) ||
+			(req_state == WCD9XXX_CLSH_STATE_LO)) {
+			wcd9xxx_dynamic_bypass_buck_ctrl_lo(codec, false);
+			wcd9xxx_set_fclk_get_ncp(codec, clsh_d,
+						NCP_FCLK_LEVEL_8);
+			if (req_state & WCD9XXX_CLSH_STATE_HPH_ST) {
+				wcd9xxx_ncp_bypass_enable(codec, true);
+				wcd9xxx_enable_clsh_block(codec, clsh_d, true);
+				wcd9xxx_chargepump_request(codec, true);
+				wcd9xxx_enable_anc_delay(codec, true);
+			}
+		}
+		if (req_state == WCD9XXX_CLSH_STATE_HPHL)
+			wcd9xxx_clsh_comp_req(codec, clsh_d,
+						CLSH_COMPUTE_HPH_L, true);
+		if (req_state == WCD9XXX_CLSH_STATE_HPHR)
+			wcd9xxx_clsh_comp_req(codec, clsh_d,
+						CLSH_COMPUTE_HPH_R, true);
+	} else {
+		switch (req_state) {
+		case WCD9XXX_CLSH_STATE_LO:
+			snd_soc_update_bits(codec, WCD9XXX_A_NCP_STATIC,
+						0x20, 0x00);
+			wcd9xxx_dynamic_bypass_buck_ctrl_lo(codec, true);
+			break;
+		case WCD9XXX_CLSH_STATE_HPHL:
+			wcd9xxx_clsh_comp_req(codec, clsh_d,
+						CLSH_COMPUTE_HPH_L, false);
+			break;
+		case WCD9XXX_CLSH_STATE_HPHR:
+			wcd9xxx_clsh_comp_req(codec, clsh_d,
+						CLSH_COMPUTE_HPH_R, false);
+			break;
+		default:
+			dev_dbg(codec->dev,
+				 "%s:Invalid state:0x%x,enable:0x%x\n",
+				__func__, req_state, is_enable);
+			break;
+		}
+		if ((req_state == WCD9XXX_CLSH_STATE_LO) ||
+		((clsh_d->state & (~req_state)) == WCD9XXX_CLSH_STATE_LO)) {
+			wcd9xxx_set_fclk_put_ncp(codec, clsh_d,
+						NCP_FCLK_LEVEL_8);
+			wcd9xxx_ncp_bypass_enable(codec, false);
+
+			if (req_state & WCD9XXX_CLSH_STATE_HPH_ST) {
+				usleep_range(BUCK_SETTLE_TIME_US,
+						BUCK_SETTLE_TIME_US + 10);
+				if (clsh_d->buck_mv ==
+						WCD9XXX_CDC_BUCK_MV_1P8) {
+					wcd9xxx_enable_buck(codec, clsh_d,
+								false);
+					wcd9xxx_ncp_bypass_enable(codec, true);
+				} else {
+					/*
+					 *NCP settle time recommended by codec
+					 *specification
+					 */
+					usleep_range(NCP_SETTLE_TIME_US,
+						NCP_SETTLE_TIME_US + 10);
+					wcd9xxx_clsh_set_Iest(codec, 0x02);
+				}
+				snd_soc_update_bits(codec,
+						WCD9XXX_A_BUCK_MODE_1,
+						0x04, 0x00);
+				snd_soc_update_bits(codec,
+						 WCD9XXX_A_BUCK_MODE_4,
+						0xFF, BUCK_VREF_1P8V);
+			}
+		}
+	}
+}
+
+static void wcd9xxx_clsh_state_ear_lo(struct snd_soc_codec *codec,
+			struct wcd9xxx_clsh_cdc_data *clsh_d,
+			u8 req_state, bool is_enable)
+{
+
+	dev_dbg(codec->dev, "%s: enter %s\n", __func__,
+			is_enable ? "enable" : "disable");
+	if (is_enable) {
+		wcd9xxx_dynamic_bypass_buck_ctrl(codec, false);
+		wcd9xxx_enable_buck(codec, clsh_d, true);
+		if (req_state & WCD9XXX_CLSH_STATE_EAR) {
+			wcd9xxx_set_fclk_get_ncp(codec, clsh_d,
+						NCP_FCLK_LEVEL_8);
+			wcd9xxx_ncp_bypass_enable(codec, true);
+			wcd9xxx_enable_clsh_block(codec, clsh_d, true);
+			wcd9xxx_chargepump_request(codec, true);
+			wcd9xxx_enable_anc_delay(codec, true);
+			wcd9xxx_clsh_comp_req(codec, clsh_d,
+						CLSH_COMPUTE_EAR, true);
+		}
+	} else {
+		wcd9xxx_set_fclk_put_ncp(codec, clsh_d, NCP_FCLK_LEVEL_8);
+		wcd9xxx_ncp_bypass_enable(codec, false);
+		if (req_state & WCD9XXX_CLSH_STATE_LO) {
+			snd_soc_update_bits(codec, WCD9XXX_A_NCP_STATIC,
+						0x20, 0x00);
+			wcd9xxx_dynamic_bypass_buck_ctrl(codec, true);
+		} else if (req_state & WCD9XXX_CLSH_STATE_EAR) {
+			wcd9xxx_clsh_comp_req(codec, clsh_d, CLSH_COMPUTE_EAR,
+						false);
+			/*sleep 5ms*/
+			if (clsh_d->buck_mv == WCD9XXX_CDC_BUCK_MV_1P8) {
+				wcd9xxx_enable_buck(codec, clsh_d, false);
+				wcd9xxx_ncp_bypass_enable(codec, true);
+			} else {
+				/* NCP settle time recommended by codec	spec */
+				usleep_range(NCP_SETTLE_TIME_US,
+					     NCP_SETTLE_TIME_US + 10);
+				wcd9xxx_clsh_set_Iest(codec, 0x02);
+			}
+			snd_soc_update_bits(codec, WCD9XXX_A_BUCK_MODE_1,
+						0x04, 0x00);
+			snd_soc_update_bits(codec, WCD9XXX_A_BUCK_MODE_4,
+						0xFF, BUCK_VREF_1P8V);
+		}
+	}
+}
+
+static void wcd9xxx_clsh_state_hph_ear_lo(struct snd_soc_codec *codec,
+			struct wcd9xxx_clsh_cdc_data *clsh_d,
+			u8 req_state, bool is_enable)
+{
+	dev_dbg(codec->dev, "%s: enter %s\n", __func__,
+			is_enable ? "enable" : "disable");
+
+	if (req_state & WCD9XXX_CLSH_STATE_HPHL)
+		wcd9xxx_clsh_comp_req(codec, clsh_d, CLSH_COMPUTE_HPH_L,
+					is_enable);
+
+	if (req_state & WCD9XXX_CLSH_STATE_HPHR)
+		wcd9xxx_clsh_comp_req(codec, clsh_d, CLSH_COMPUTE_HPH_R,
+					is_enable);
+
+	if (req_state & WCD9XXX_CLSH_STATE_EAR)
+		wcd9xxx_clsh_comp_req(codec, clsh_d, CLSH_COMPUTE_EAR,
+					is_enable);
+}
+
 static void wcd9xxx_clsh_state_ear(struct snd_soc_codec *codec,
 			struct wcd9xxx_clsh_cdc_data *clsh_d,
 			u8 req_state, bool is_enable)
