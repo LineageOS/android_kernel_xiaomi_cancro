@@ -241,7 +241,7 @@ static inline void vc_isr_no_new_buffer(struct vcap_dev *dev,
 	atomic_inc(&dev->dbg_p.vc_drop_count);
 }
 
-static inline void vc_isr_switch_buffers(struct vcap_dev *dev,
+static void vc_isr_switch_buffers(struct vcap_dev *dev,
 		struct vcap_client_data *c_data, struct vcap_buffer *buf,
 		struct vb2_buffer *vb, uint8_t idx, int done_count, int i)
 {
@@ -265,7 +265,7 @@ static inline void vc_isr_switch_buffers(struct vcap_dev *dev,
 	c_data->vc_action.buf[idx] = buf;
 }
 
-static inline bool vc_isr_change_buffers(struct vcap_dev *dev,
+static bool vc_isr_change_buffers(struct vcap_dev *dev,
 		struct vcap_client_data *c_data, struct v4l2_event v4l2_evt,
 		int done_count, uint8_t tot, uint8_t buf_num)
 {
