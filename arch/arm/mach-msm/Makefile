@@ -73,7 +73,7 @@ target += smd_rpc_sym.c
 $(obj)/smd_rpc_sym.c: $(src)/smd_rpc_sym $(src)/mkrpcsym.pl
 	$(call if_changed,mkrpcsym)
 
-obj-$(CONFIG_MSM_SMD) += smd.o smd_debug.o remote_spinlock.o smd_private.o smem.o smd_init_dt.o smd_init_plat.o
+obj-$(CONFIG_MSM_SMD) += smd.o remote_spinlock.o smd_private.o smem.o smd_init_dt.o smd_init_plat.o
 obj-$(CONFIG_MSM_SMP2P) += smp2p.o smp2p_debug.o smp2p_gpio.o
 obj-$(CONFIG_MSM_SMP2P_TEST) += smp2p_loopback.o smp2p_test.o smp2p_gpio_test.o smp2p_spinlock_test.o
 obj-$(CONFIG_MSM_SCM) += scm.o scm-boot.o
@@ -362,7 +362,7 @@ obj-$(CONFIG_ARCH_APQ8084) += gpiomux-v2.o gpiomux.o
 obj-$(CONFIG_ARCH_FSM9900) += gpiomux-v2.o gpiomux.o
 
 obj-$(CONFIG_MSM_SLEEP_STATS_DEVICE) += idle_stats_device.o
-obj-$(CONFIG_MSM_DCVS) += msm_dcvs_scm.o msm_dcvs.o msm_mpdecision.o
+obj-$(CONFIG_MSM_DCVS) += msm_dcvs_scm.o msm_dcvs.o
 obj-$(CONFIG_MSM_RUN_QUEUE_STATS) += msm_rq_stats.o
 obj-$(CONFIG_MSM_SHOW_RESUME_IRQ) += msm_show_resume_irq.o
 obj-$(CONFIG_BT_MSM_PINTEST)  += btpintest.o
