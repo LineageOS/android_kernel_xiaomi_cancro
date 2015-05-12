@@ -30,6 +30,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/stuxnet.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
 #include <linux/android_alarm.h>
@@ -37,6 +38,8 @@
 #include <mach/rpm-regulator.h>
 #include <mach/rpm-regulator-smd.h>
 #include <linux/regulator/consumer.h>
+struct cpufreq_policy *policy = NULL;
+
 #include <linux/msm_thermal_ioctl.h>
 #include <mach/rpm-smd.h>
 #include <mach/scm.h>
@@ -67,7 +70,8 @@ static struct completion hotplug_notify_complete;
 static struct completion freq_mitigation_complete;
 static struct completion thermal_monitor_complete;
 
-static int enabled;
+static int enabled = 1;
+static int is_throttling = 0;
 static int polling_enabled;
 static int rails_cnt;
 static int psm_rails_cnt;
@@ -798,11 +802,11 @@ static int msm_thermal_get_freq_table(void)
 		goto fail;
 	}
 
-	while (table[i].frequency != CPUFREQ_TABLE_END)
+	while (table[i].frequency != user_policy_max_freq)
 		i++;
 
-	limit_idx_low = 0;
-	limit_idx_high = limit_idx = i - 1;
+	limit_idx_low = 4;
+	limit_idx_high = limit_idx = i;
 	BUG_ON(limit_idx_high <= 0 || limit_idx_high <= limit_idx_low);
 fail:
 	return ret;
@@ -987,6 +991,7 @@ static void __ref do_core_control(long temp)
 {
 	int i = 0;
 	int ret = 0;
+	policy = cpufreq_cpu_get(0);
 
 	if (!core_control_enabled)
 		return;
@@ -1275,6 +1280,11 @@ static void __ref do_freq_control(long temp)
 	uint32_t max_freq = cpus[cpu].limited_max_freq;
 
 	if (temp >= msm_thermal_info.limit_temp_degC) {
+		if ( !is_throttling ) {
+			user_policy_max_freq = policy->max;
+			is_throttling = 1;
+		}
+
 		if (limit_idx == limit_idx_low)
 			return;
 
@@ -1904,6 +1914,7 @@ static void __ref disable_msm_thermal(void)
 			cpus[cpu].limited_min_freq == 0)
 			continue;
 		pr_info("Max frequency reset for CPU%d\n", cpu);
+		is_throttling = 0;
 		cpus[cpu].limited_max_freq = UINT_MAX;
 		cpus[cpu].limited_min_freq = 0;
 		update_cpu_freq(cpu);
