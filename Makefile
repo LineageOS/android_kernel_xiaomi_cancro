@@ -361,14 +361,14 @@ AFLAGS_MODULE   = $(MODFLAGS)
 LDFLAGS_MODULE  = -T $(srctree)/scripts/module-common.lds
 CFLAGS_KERNEL   = -mfpu=neon-vfpv4 \
                   -mtune=cortex-a15 \
-                  -Ofast \
+                  -O2 \
                   -fgcse-las \
                   -fpredictive-commoning \
 		  -Wno-error=implicit-function-declaration
 		  
 AFLAGS_KERNEL	= -mfpu=neon-vfpv4 \
                   -mtune=cortex-a15 \
-                  -Ofast \
+                  -O2 \
                   -fgcse-las \
                   -fpredictive-commoning \
 		  -Wno-error=implicit-function-declaration
