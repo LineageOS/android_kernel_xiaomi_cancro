@@ -245,8 +245,9 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else echo sh; fi ; fi)
 
 HOSTCC       = $(CCACHE) gcc
-HOSTCXX      = $(CCACHE) g++ -fgraphite -floop-flatten -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block
-HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -Ofast -fomit-frame-pointer -fgcse-las -fgraphite -floop-flatten -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block
+HOSTCXX      = $(CCACHE) g++
+HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes \
+	       -Ofast -fomit-frame-pointer -fgcse-las
 
 # Decide whether to build built-in, modular, or both.
 # Normally, just do built-in.
@@ -330,8 +331,8 @@ include $(srctree)/scripts/Kbuild.include
 
 AS		= $(CROSS_COMPILE)as
 LD		= $(CROSS_COMPILE)ld
-CC		= $(CCACHE) $(CROSS_COMPILE)gcc -fgraphite -floop-flatten -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block
-CPP		= $(CC) -E -fgraphite -floop-flatten -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block
+CC		= $(CCACHE) $(CROSS_COMPILE)gcc
+CPP		= $(CC) -E
 AR		= $(CROSS_COMPILE)ar
 NM		= $(CROSS_COMPILE)nm
 STRIP		= $(CROSS_COMPILE)strip
@@ -360,19 +361,17 @@ AFLAGS_MODULE   = $(MODFLAGS)
 LDFLAGS_MODULE  = -T $(srctree)/scripts/module-common.lds
 CFLAGS_KERNEL   = -mfpu=neon-vfpv4 \
                   -mtune=cortex-a15 \
-                  -O2 \
+                  -Ofast \
                   -fgcse-las \
                   -fpredictive-commoning \
-		  -Wno-error=implicit-function-declaration \
-		  -fgraphite -floop-flatten -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block
+		  -Wno-error=implicit-function-declaration
 		  
 AFLAGS_KERNEL	= -mfpu=neon-vfpv4 \
                   -mtune=cortex-a15 \
-                  -O2 \
+                  -Ofast \
                   -fgcse-las \
                   -fpredictive-commoning \
-		  -Wno-error=implicit-function-declaration \
-		  -fgraphite -floop-flatten -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block
+		  -Wno-error=implicit-function-declaration
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 
 
