@@ -20,7 +20,7 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/cpufreq.h>
-#include "linux/lcd_notify.h"
+#include <linux/lcd_notify.h>
 #include <linux/input.h>
 #include <linux/math64.h>
 #include <linux/kernel_stat.h>
@@ -1134,13 +1134,6 @@ static int __devinit msm_hotplug_probe(struct platform_device *pdev)
 	ret = sysfs_create_group(module_kobj, &attr_group);
 	if (ret) {
 		pr_err("%s: Failed to create sysfs: %d\n", MSM_HOTPLUG, ret);
-		goto err_dev;
-	}
-
-	hotplug.notif.notifier_call = lcd_notifier_callback;
-        if (lcd_register_client(&hotplug.notif) != 0) {
-                pr_err("%s: Failed to register LCD notifier callback\n",
-                       MSM_HOTPLUG);
 		goto err_dev;
 	}
 
