@@ -247,7 +247,7 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 HOSTCC       = $(CCACHE) gcc
 HOSTCXX      = $(CCACHE) g++
 HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes \
-	       -Ofast -fomit-frame-pointer -fgcse-las
+	       -O3 -fomit-frame-pointer
 
 # Decide whether to build built-in, modular, or both.
 # Normally, just do built-in.
@@ -352,9 +352,8 @@ CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 MODFLAGS        = -DMODULE \
                   -mfpu=neon-vfpv4 \
                   -mtune=cortex-a15 \
-                  -Ofast \
-                  -fgcse-las \
-		  -fpredictive-commoning
+                  -O3 \
+                  -fpredictive-commoning
 
 CFLAGS_MODULE   = $(MODFLAGS)
 AFLAGS_MODULE   = $(MODFLAGS)
@@ -362,14 +361,12 @@ LDFLAGS_MODULE  = -T $(srctree)/scripts/module-common.lds
 CFLAGS_KERNEL   = -mfpu=neon-vfpv4 \
                   -mtune=cortex-a15 \
                   -O2 \
-                  -fgcse-las \
                   -fpredictive-commoning \
 		  -Wno-error=implicit-function-declaration
 		  
 AFLAGS_KERNEL	= -mfpu=neon-vfpv4 \
                   -mtune=cortex-a15 \
                   -O2 \
-                  -fgcse-las \
                   -fpredictive-commoning \
 		  -Wno-error=implicit-function-declaration
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
@@ -584,7 +581,7 @@ all: vmlinux
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os $(call cc-disable-warning,maybe-uninitialized,)
 else
-KBUILD_CFLAGS	+= -Ofast
+KBUILD_CFLAGS	+= -O3
 endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
