@@ -1,4 +1,4 @@
-ccflags-y := -Ofast -fgcse-las -fpredictive-commoning \
+ccflags-y := -fpredictive-commoning \
 	     -ffast-math -fgcse-lm -fgcse-sm -fsched-spec-load \
 	     -fforce-addr -fsingle-precision-constant \
 	     -mcpu=cortex-a15 -mtune=cortex-a15 -marm -mfpu=neon-vfpv4
