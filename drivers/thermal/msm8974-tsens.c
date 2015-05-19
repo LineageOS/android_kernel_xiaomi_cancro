@@ -26,6 +26,7 @@
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/wakelock.h>
+#include <linux/sched.h>
 
 #include <mach/msm_iomap.h>
 
