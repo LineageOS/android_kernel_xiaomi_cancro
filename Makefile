@@ -363,7 +363,6 @@ CFLAGS_KERNEL   = -mfpu=neon-vfpv4 \
                   -O2 \
                   -fpredictive-commoning \
 		  -Wno-error=implicit-function-declaration
-		  
 AFLAGS_KERNEL	= -mfpu=neon-vfpv4 \
                   -mtune=cortex-a15 \
                   -O2 \
@@ -389,6 +388,9 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -mno-unaligned-access \
 		   -fno-delete-null-pointer-checks \
 		   -pipe
+ifeq ($(ENABLE_GCC6),true)
+KBUILD_CFLAGS	+= -Wbool-compare
+endif
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS   := -D__ASSEMBLY__
