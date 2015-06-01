@@ -123,6 +123,10 @@ static struct adreno_device device_3d0 = {
 		.mem_log = KGSL_LOG_LEVEL_DEFAULT,
 		.pwr_log = KGSL_LOG_LEVEL_DEFAULT,
 		.pm_dump_enable = 0,
+		.display_off = {
+			.suspend = kgsl_early_suspend_driver,
+			.resume = kgsl_late_resume_driver,
+		},
 	},
 	.gmem_base = 0,
 	.gmem_size = SZ_256K,
@@ -3448,7 +3452,6 @@ static struct platform_driver adreno_platform_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = DEVICE_3D_NAME,
-		.pm = &kgsl_pm_ops,
 		.of_match_table = adreno_match_table,
 	}
 };
