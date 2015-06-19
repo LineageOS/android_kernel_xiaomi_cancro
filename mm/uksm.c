@@ -3236,7 +3236,7 @@ static struct rmap_item *get_next_rmap_item(struct vma_slot *slot, u32 *hash)
 	if (find_zero_page_hash(hash_strength, *hash)) {
 		if (!cmp_and_merge_zero_page(slot->vma, page)) {
 			slot->pages_merged++;
-			__inc_zone_page_state(page, NR_UKSM_ZERO_PAGES);
+			inc_zone_page_state(page, NR_UKSM_ZERO_PAGES);
 			dec_mm_counter(slot->mm, MM_ANONPAGES);
 
 			/* For full-zero pages, no need to create rmap item */
