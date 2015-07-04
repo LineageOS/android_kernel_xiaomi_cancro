@@ -296,13 +296,6 @@ out:
 
 }
 
-static int hidraw_fasync(int fd, struct file *file, int on)
-{
-	struct hidraw_list *list = file->private_data;
-
-	return fasync_helper(fd, file, on, &list->fasync);
-}
-
 static void drop_ref(struct hidraw *hidraw, int exists_bit)
 {
 	if (exists_bit) {
@@ -572,7 +565,6 @@ int __init hidraw_init(void)
 	if (result < 0)
 		goto error_class;
 
-	printk(KERN_INFO "hidraw: raw HID events driver (C) Jiri Kosina\n");
 out:
 	return result;
 

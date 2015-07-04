@@ -1870,7 +1870,6 @@ static int exfat_write_inode(struct inode *inode, struct writeback_control *wbc)
 static void exfat_delete_inode(struct inode *inode)
 {
 	truncate_inode_pages(&inode->i_data, 0);
-	clear_inode(inode);
 }
 
 static void exfat_clear_inode(struct inode *inode)
@@ -1888,8 +1887,6 @@ static void exfat_evict_inode(struct inode *inode)
 	invalidate_inode_buffers(inode);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,4,80)
 	end_writeback(inode);
-#else
-	clear_inode(inode);
 #endif
 	exfat_detach(inode);
 
