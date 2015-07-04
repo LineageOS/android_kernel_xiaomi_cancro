@@ -308,6 +308,7 @@ VOS_STATUS wlan_hdd_cancel_existing_remain_on_channel(hdd_adapter_t *pAdapter)
               "%s: timeout waiting for remain on channel ready indication %d",
                     __func__, status);
             pRemainChanCtx->is_pending_roc_cancelled = TRUE;
+            mutex_unlock;
             return VOS_STATUS_E_FAILURE;
         }
 

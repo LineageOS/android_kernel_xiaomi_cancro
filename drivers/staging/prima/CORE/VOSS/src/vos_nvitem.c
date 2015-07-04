@@ -3555,7 +3555,8 @@ int wlan_hdd_linux_reg_notifier(struct wiphy *wiphy,
 
     if (TRUE == isWDresetInProgress())
     {
-        wiphy_dbg(wiphy, "info: %s: SSR is in progress", __func__);
+       VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                    ("SSR is in progress") );
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
         return;
 #else
