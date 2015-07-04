@@ -226,7 +226,6 @@ int ip_cmsg_send(struct net *net, struct msghdr *msg, struct ipcm_cookie *ipc)
    They are selected only by protocol field, and then processed likely
    local ones; but only if someone wants them! Otherwise, router
    not running rsvpd will kill RSVP.
-
    It is user level problem, what it will make with them.
    I have no idea, how it will masquearde or NAT them (it is joke, joke :-)),
    but receiver should be enough clever f.e. to forward mtrace requests,
