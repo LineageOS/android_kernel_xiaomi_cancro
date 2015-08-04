@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2014, Linux Foundation. All rights reserved.
+/* Copyright (c) 2009-2015, Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -49,11 +49,6 @@
 #include <mach/msm_xo.h>
 #include <mach/msm_bus.h>
 #include <mach/rpm-regulator.h>
-
-#ifdef CONFIG_FORCE_FAST_CHARGE
-#include <linux/fastchg.h>
-#define USB_FASTCHG_LOAD 1000 /* uA */
-#endif
 
 #define MSM_USB_BASE	(motg->regs)
 #define DRIVER_NAME	"msm_otg"
@@ -1042,7 +1037,8 @@ static int msm_otg_suspend(struct msm_otg *motg)
 				phy_ctrl_val |= PHY_OTGSESSVLDHV_INTEN;
 		}
 		if (host_bus_suspend)
-			phy_ctrl_val |= PHY_CLAMP_DPDMSE_EN;
+			phy_ctrl_val |= (PHY_CLAMP_DPDMSE_EN |PHY_DMSE_INTEN |
+						PHY_DPSE_INTEN);
 
 		if (!(motg->caps & ALLOW_VDD_MIN_WITH_RETENTION_DISABLED)) {
 			writel_relaxed(phy_ctrl_val & ~PHY_RETEN, USB_PHY_CTRL);
@@ -1200,7 +1196,8 @@ static int msm_otg_resume(struct msm_otg *motg)
 			/* Disable PHY HV interrupts */
 			phy_ctrl_val &=
 				~(PHY_IDHV_INTEN | PHY_OTGSESSVLDHV_INTEN);
-		phy_ctrl_val &= ~(PHY_CLAMP_DPDMSE_EN);
+		phy_ctrl_val &= ~(PHY_CLAMP_DPDMSE_EN | PHY_DMSE_INTEN |
+					PHY_DPSE_INTEN);
 		writel_relaxed(phy_ctrl_val, USB_PHY_CTRL);
 		motg->lpm_flags &= ~PHY_RETENTIONED;
 	}
@@ -1424,14 +1421,7 @@ static void msm_otg_notify_charger(struct msm_otg *motg, unsigned mA)
 
 	if (motg->cur_power == mA)
 		return;
-#ifdef CONFIG_FORCE_FAST_CHARGE
-	if (force_fast_charge == 1) {
-			mA = USB_FASTCHG_LOAD;
-			pr_info("USB fast charging is ON - 1000mA.\n");
-	} else {
-		pr_info("USB fast charging is OFF.\n");
-	}
-#endif
+
 	dev_info(motg->phy.dev, "Avail curr from USB = %u\n", mA);
 
 	/*

@@ -555,8 +555,7 @@ static int get_dimm_config(const struct mem_ctl_info *mci)
 {
 	struct sbridge_pvt *pvt = mci->pvt_info;
 	struct csrow_info *csr;
-	unsigned i, j, banks, ranks, rows, cols, npages;
-	u64 size;
+	int i, j, banks, ranks, rows, cols, size, npages;
 	int csrow = 0;
 	unsigned long last_page = 0;
 	u32 reg;
@@ -600,7 +599,7 @@ static int get_dimm_config(const struct mem_ctl_info *mci)
 		pvt->is_close_pg = false;
 	}
 
-	pci_read_config_dword(pvt->pci_ddrio, RANK_CFG_A, &reg);
+	pci_read_config_dword(pvt->pci_ta, RANK_CFG_A, &reg);
 	if (IS_RDIMM_ENABLED(reg)) {
 		/* FIXME: Can also be LRDIMM */
 		debugf0("Memory is registered\n");
@@ -628,10 +627,10 @@ static int get_dimm_config(const struct mem_ctl_info *mci)
 				cols = numcol(mtr);
 
 				/* DDR3 has 8 I/O banks */
-				size = ((u64)rows * cols * banks * ranks) >> (20 - 3);
+				size = (rows * cols * banks * ranks) >> (20 - 3);
 				npages = MiB_TO_PAGES(size);
 
-				debugf0("mc#%d: channel %d, dimm %d, %Ld Mb (%d pages) bank: %d, rank: %d, row: %#x, col: %#x\n",
+				debugf0("mc#%d: channel %d, dimm %d, %d Mb (%d pages) bank: %d, rank: %d, row: %#x, col: %#x\n",
 					pvt->sbridge_dev->mc, i, j,
 					size, npages,
 					banks, ranks, rows, cols);
@@ -672,7 +671,7 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 	u32 reg;
 	u64 limit, prv = 0;
 	u64 tmp_mb;
-	u32 gb, mb;
+	u32 mb, kb;
 	u32 rir_way;
 
 	/*
@@ -685,9 +684,9 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 	pvt->tolm = GET_TOLM(reg);
 	tmp_mb = (1 + pvt->tolm) >> 20;
 
-	gb = div_u64_rem(tmp_mb, 1024, &mb);
-	debugf0("TOHM: %u.%03u GB (0x%016Lx)\n",
-		gb, (mb*1000)/1024, (u64)pvt->tohm);
+	mb = div_u64_rem(tmp_mb, 1000, &kb);
+	debugf0("TOLM: %u.%03u GB (0x%016Lx)\n",
+		mb, kb, (u64)pvt->tolm);
 
 	/* Address range is already 45:25 */
 	pci_read_config_dword(pvt->pci_sad1, TOHM,
@@ -695,9 +694,9 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 	pvt->tohm = GET_TOHM(reg);
 	tmp_mb = (1 + pvt->tohm) >> 20;
 
-	gb = div_u64_rem(tmp_mb, 1024, &mb);
+	mb = div_u64_rem(tmp_mb, 1000, &kb);
 	debugf0("TOHM: %u.%03u GB (0x%016Lx)",
-		gb, (mb*1000)/1024, (u64)pvt->tohm);
+		mb, kb, (u64)pvt->tohm);
 
 	/*
 	 * Step 2) Get SAD range and SAD Interleave list
@@ -719,11 +718,11 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 			break;
 
 		tmp_mb = (limit + 1) >> 20;
-		gb = div_u64_rem(tmp_mb, 1000, &mb);
+		mb = div_u64_rem(tmp_mb, 1000, &kb);
 		debugf0("SAD#%d %s up to %u.%03u GB (0x%016Lx) %s reg=0x%08x\n",
 			n_sads,
 			get_dram_attr(reg),
-			gb, (mb*1000)/1024,
+			mb, kb,
 			((u64)tmp_mb) << 20L,
 			INTERLEAVE_MODE(reg) ? "Interleave: 8:6" : "Interleave: [8:6]XOR[18:16]",
 			reg);
@@ -753,9 +752,9 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 			break;
 		tmp_mb = (limit + 1) >> 20;
 
-		gb = div_u64_rem(tmp_mb, 1000, &mb);
+		mb = div_u64_rem(tmp_mb, 1000, &kb);
 		debugf0("TAD#%d: up to %u.%03u GB (0x%016Lx), socket interleave %d, memory interleave %d, TGT: %d, %d, %d, %d, reg=0x%08x\n",
-			n_tads, gb, (mb*1000)/1024,
+			n_tads, mb, kb,
 			((u64)tmp_mb) << 20L,
 			(u32)TAD_SOCK(reg),
 			(u32)TAD_CH(reg),
@@ -778,10 +777,10 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 					      tad_ch_nilv_offset[j],
 					      &reg);
 			tmp_mb = TAD_OFFSET(reg) >> 20;
-			gb = div_u64_rem(tmp_mb, 1024, &mb);
+			mb = div_u64_rem(tmp_mb, 1000, &kb);
 			debugf0("TAD CH#%d, offset #%d: %u.%03u GB (0x%016Lx), reg=0x%08x\n",
 				i, j,
-				gb, (mb*1000)/1024,
+				mb, kb,
 				((u64)tmp_mb) << 20L,
 				reg);
 		}
@@ -803,10 +802,10 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 
 			tmp_mb = RIR_LIMIT(reg) >> 20;
 			rir_way = 1 << RIR_WAY(reg);
-			gb = div_u64_rem(tmp_mb, 1024, &mb);
+			mb = div_u64_rem(tmp_mb, 1000, &kb);
 			debugf0("CH#%d RIR#%d, limit: %u.%03u GB (0x%016Lx), way: %d, reg=0x%08x\n",
 				i, j,
-				gb, (mb*1000)/1024,
+				mb, kb,
 				((u64)tmp_mb) << 20L,
 				rir_way,
 				reg);
@@ -817,10 +816,10 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 						      &reg);
 				tmp_mb = RIR_OFFSET(reg) << 6;
 
-				gb = div_u64_rem(tmp_mb, 1024, &mb);
+				mb = div_u64_rem(tmp_mb, 1000, &kb);
 				debugf0("CH#%d RIR#%d INTL#%d, offset %u.%03u GB (0x%016Lx), tgt: %d, reg=0x%08x\n",
 					i, j, k,
-					gb, (mb*1000)/1024,
+					mb, kb,
 					((u64)tmp_mb) << 20L,
 					(u32)RIR_RNK_TGT(reg),
 					reg);
@@ -858,7 +857,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	u8			ch_way,sck_way;
 	u32			tad_offset;
 	u32			rir_way;
-	u32			gb, mb;
+	u32			mb, kb;
 	u64			ch_addr, offset, limit, prv = 0;
 
 
@@ -1084,10 +1083,10 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 			continue;
 
 		limit = RIR_LIMIT(reg);
-		gb = div_u64_rem(limit >> 20, 1024, &mb);
+		mb = div_u64_rem(limit >> 20, 1000, &kb);
 		debugf0("RIR#%d, limit: %u.%03u GB (0x%016Lx), way: %d\n",
 			n_rir,
-			gb, (mb*1000)/1024,
+			mb, kb,
 			limit,
 			1 << RIR_WAY(reg));
 		if  (ch_addr <= limit)
@@ -1670,6 +1669,8 @@ static void sbridge_unregister_mci(struct sbridge_dev *sbridge_dev)
 	debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
 		__func__, mci, &sbridge_dev->pdev[0]->dev);
 
+	mce_unregister_decode_chain(&sbridge_mce_dec);
+
 	/* Remove MC sysfs nodes */
 	edac_mc_del_mc(mci->dev);
 
@@ -1737,6 +1738,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev)
 		goto fail0;
 	}
 
+	mce_register_decode_chain(&sbridge_mce_dec);
 	return 0;
 
 fail0:
@@ -1865,10 +1867,8 @@ static int __init sbridge_init(void)
 
 	pci_rc = pci_register_driver(&sbridge_driver);
 
-	if (pci_rc >= 0) {
-		mce_register_decode_chain(&sbridge_mce_dec);
+	if (pci_rc >= 0)
 		return 0;
-	}
 
 	sbridge_printk(KERN_ERR, "Failed to register device with error %d.\n",
 		      pci_rc);
@@ -1884,7 +1884,6 @@ static void __exit sbridge_exit(void)
 {
 	debugf2("MC: " __FILE__ ": %s()\n", __func__);
 	pci_unregister_driver(&sbridge_driver);
-	mce_unregister_decode_chain(&sbridge_mce_dec);
 }
 
 module_init(sbridge_init);

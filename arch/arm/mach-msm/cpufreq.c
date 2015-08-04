@@ -27,7 +27,6 @@
 #include <linux/cpumask.h>
 #include <linux/sched.h>
 #include <linux/suspend.h>
-#include <linux/stuxnet.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
@@ -66,9 +65,6 @@ struct cpufreq_work_struct {
 
 static DEFINE_PER_CPU(struct cpufreq_work_struct, cpufreq_work);
 static struct workqueue_struct *msm_cpufreq_wq;
-#ifdef CONFIG_MSM_CPU_VOLTAGE_CONTROL
-static struct cpufreq_frequency_table *krait_freq_table;
-#endif
 
 struct cpufreq_suspend_t {
 	struct mutex suspend_mutex;
@@ -279,7 +275,6 @@ static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 	policy->min = CONFIG_MSM_CPU_FREQ_MIN;
 	policy->max = CONFIG_MSM_CPU_FREQ_MAX;
 #endif
-	policy->max = user_policy_max_freq;
 
 	if (is_clk)
 		cur_freq = clk_get_rate(cpu_clk[policy->cpu])/1000;
@@ -497,21 +492,6 @@ static int cpufreq_parse_dt(struct device *dev)
 	freq_table[i].index = i;
 	freq_table[i].frequency = CPUFREQ_TABLE_END;
 
-#ifdef CONFIG_MSM_CPU_VOLTAGE_CONTROL
-	/* Create frequence table with unrounded values */
-	krait_freq_table = devm_kzalloc(dev, (nf + 1) * sizeof(*krait_freq_table),
-					GFP_KERNEL);
-	if (!krait_freq_table)
-		return ERR_PTR(-ENOMEM);
-
-	*krait_freq_table = *freq_table;
-
-	for (i = 0; i < nf; i++)
-		krait_freq_table[i].frequency = data[i];
-
-	krait_freq_table[i].frequency = CPUFREQ_TABLE_END;
-#endif
-
 	devm_kfree(dev, data);
 
 	return 0;
@@ -551,26 +531,6 @@ const struct file_operations msm_cpufreq_fops = {
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
-#endif
-
-#ifdef CONFIG_MSM_CPU_VOLTAGE_CONTROL
-int use_for_scaling(unsigned int freq)
-{
-	unsigned int i, cpu_freq;
-
-	if (!krait_freq_table)
-		return -EINVAL;
-
-	for (i = 0; krait_freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		cpu_freq = krait_freq_table[i].frequency;
-		if (cpu_freq == CPUFREQ_ENTRY_INVALID)
-			continue;
-		if (freq == cpu_freq)
-			return freq;
-	}
-
-	return -EINVAL;
-}
 #endif
 
 static int __init msm_cpufreq_probe(struct platform_device *pdev)

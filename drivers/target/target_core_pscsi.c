@@ -128,10 +128,10 @@ static int pscsi_pmode_enable_hba(struct se_hba *hba, unsigned long mode_flag)
 	 * pSCSI Host ID and enable for phba mode
 	 */
 	sh = scsi_host_lookup(phv->phv_host_id);
-	if (!sh) {
+	if (IS_ERR(sh)) {
 		pr_err("pSCSI: Unable to locate SCSI Host for"
 			" phv_host_id: %d\n", phv->phv_host_id);
-		return -EINVAL;
+		return PTR_ERR(sh);
 	}
 
 	phv->phv_lld_host = sh;
@@ -562,10 +562,10 @@ static struct se_device *pscsi_create_virtdevice(
 			sh = phv->phv_lld_host;
 		} else {
 			sh = scsi_host_lookup(pdv->pdv_host_id);
-			if (!sh) {
+			if (IS_ERR(sh)) {
 				pr_err("pSCSI: Unable to locate"
 					" pdv_host_id: %d\n", pdv->pdv_host_id);
-				return ERR_PTR(-EINVAL);
+				return ERR_CAST(sh);
 			}
 		}
 	} else {
@@ -1042,6 +1042,7 @@ static int pscsi_map_sg(struct se_task *task, struct scatterlist *task_sg,
 				bio = NULL;
 			}
 
+			page++;
 			len -= bytes;
 			data_len -= bytes;
 			off = 0;
@@ -1165,7 +1166,7 @@ static u32 pscsi_get_device_type(struct se_device *dev)
 	struct pscsi_dev_virt *pdv = dev->dev_ptr;
 	struct scsi_device *sd = pdv->pdv_sd;
 
-	return (sd) ? sd->type : TYPE_NO_LUN;
+	return sd->type;
 }
 
 static sector_t pscsi_get_blocks(struct se_device *dev)

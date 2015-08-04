@@ -1018,9 +1018,6 @@ static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr)
 		return -EINVAL;
 	}
 
-	if (!dev)
-		return -EINVAL;
-
 	dev->cpu = pr->id;
 
 	if (max_cstate == 0)
@@ -1195,9 +1192,9 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 
 	if (pr->id == 0 && cpuidle_get_driver() == &acpi_idle_driver) {
 
+		cpuidle_pause_and_lock();
 		/* Protect against cpu-hotplug */
 		get_online_cpus();
-		cpuidle_pause_and_lock();
 
 		/* Disable all cpuidle devices */
 		for_each_online_cpu(cpu) {
@@ -1208,7 +1205,6 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 		}
 
 		/* Populate Updated C-state information */
-		acpi_processor_get_power_info(pr);
 		acpi_processor_setup_cpuidle_states(pr);
 
 		/* Enable all cpuidle devices */
@@ -1222,8 +1218,8 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 				cpuidle_enable_device(&_pr->power.dev);
 			}
 		}
-		cpuidle_resume_and_unlock();
 		put_online_cpus();
+		cpuidle_resume_and_unlock();
 	}
 
 	return 0;

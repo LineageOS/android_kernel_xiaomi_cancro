@@ -61,22 +61,33 @@ int do_truncate(struct dentry *dentry, loff_t length, unsigned int time_attrs,
 	return ret;
 }
 
-long vfs_truncate(struct path *path, loff_t length)
+static long do_sys_truncate(const char __user *pathname, loff_t length)
 {
+	struct path path;
 	struct inode *inode;
-	long error;
+	int error;
 
-	inode = path->dentry->d_inode;
+	error = -EINVAL;
+	if (length < 0)	/* sorry, but loff_t says... */
+		goto out;
 
-	/* For directories it's -EISDIR, for other non-regulars - -EINVAL */
-	if (S_ISDIR(inode->i_mode))
-		return -EISDIR;
-	if (!S_ISREG(inode->i_mode))
-		return -EINVAL;
-
-	error = mnt_want_write(path->mnt);
+	error = user_path(pathname, &path);
 	if (error)
 		goto out;
+	inode = path.dentry->d_inode;
+
+	/* For directories it's -EISDIR, for other non-regulars - -EINVAL */
+	error = -EISDIR;
+	if (S_ISDIR(inode->i_mode))
+		goto dput_and_out;
+
+	error = -EINVAL;
+	if (!S_ISREG(inode->i_mode))
+		goto dput_and_out;
+
+	error = mnt_want_write(path.mnt);
+	if (error)
+		goto dput_and_out;
 
 	error = inode_permission(inode, MAY_WRITE);
 	if (error)
@@ -100,32 +111,17 @@ long vfs_truncate(struct path *path, loff_t length)
 
 	error = locks_verify_truncate(inode, NULL, length);
 	if (!error)
-		error = security_path_truncate(path);
+		error = security_path_truncate(&path);
 	if (!error)
-		error = do_truncate(path->dentry, length, 0, NULL);
+		error = do_truncate(path.dentry, length, 0, NULL);
 
 put_write_and_out:
 	put_write_access(inode);
 mnt_drop_write_and_out:
-	mnt_drop_write(path->mnt);
+	mnt_drop_write(path.mnt);
+dput_and_out:
+	path_put(&path);
 out:
-	return error;
-}
-EXPORT_SYMBOL_GPL(vfs_truncate);
-
-static long do_sys_truncate(const char __user *pathname, loff_t length)
-{
-	struct path path;
-	int error;
-
-	if (length < 0)	/* sorry, but loff_t says... */
-		return -EINVAL;
-
-	error = user_path(pathname, &path);
-	if (!error) {
-		error = vfs_truncate(&path, length);
-		path_put(&path);
-	}
 	return error;
 }
 
@@ -400,10 +396,10 @@ SYSCALL_DEFINE1(fchdir, unsigned int, fd)
 {
 	struct file *file;
 	struct inode *inode;
-	int error, fput_needed;
+	int error;
 
 	error = -EBADF;
-	file = fget_raw_light(fd, &fput_needed);
+	file = fget(fd);
 	if (!file)
 		goto out;
 
@@ -417,7 +413,7 @@ SYSCALL_DEFINE1(fchdir, unsigned int, fd)
 	if (!error)
 		set_fs_pwd(current->fs, &file->f_path);
 out_putf:
-	fput_light(file, fput_needed);
+	fput(file);
 out:
 	return error;
 }
@@ -886,10 +882,9 @@ static inline int build_open_flags(int flags, umode_t mode, struct open_flags *o
 	int lookup_flags = 0;
 	int acc_mode;
 
-	if (flags & O_CREAT)
-		op->mode = (mode & S_IALLUGO) | S_IFREG;
-	else
-		op->mode = 0;
+	if (!(flags & O_CREAT))
+		mode = 0;
+	op->mode = mode;
 
 	/* Must never be set by userspace */
 	flags &= ~FMODE_NONOTIFY;

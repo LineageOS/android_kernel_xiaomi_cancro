@@ -1887,12 +1887,6 @@ config MSM_DEVFREQ_CPUBW
 	  agnostic interface to so that some of the devfreq governors can be
 	  shared across SoCs.
 
-config MSM_CPU_VOLTAGE_CONTROL
-	bool "Userspace CPU Voltage Control"
-	default y
-	help
-	  This enables userspace CPU Voltage Control.
-
 config MSM_AVS_HW
 	bool "Enable Adaptive Voltage Scaling (AVS)"
 	default n
@@ -2876,14 +2870,6 @@ config MSM_DCVS
 	  algorithm and the algorithm returns a frequency for the core which is
 	  passed to the frequency change driver.
 
-config MSM_HOTPLUG
-	bool "MSM hotplug driver"
-	depends on HOTPLUG_CPU
-	default y
-	help
-	  The MSM hotplug driver controls on-/offlining of additional cores based
-	  on current cpu load.
-
 config MSM_CPR
 	tristate "Use MSM CPR in S/W mode"
 	help
@@ -3071,12 +3057,5 @@ config HAS_MACH_MEMUTILS
 	bool "Motorola MSM memcpy enhancements"
 	help
 	Faster memcpy performance for Krait
-
-config FORCE_FAST_CHARGE
-	bool "Force AC charge mode at will"
-	default y
-	help
-		A simple sysfs interface to force adapters that
-		are detected as USB to charge as AC.
 
 endif

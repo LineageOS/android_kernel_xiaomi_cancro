@@ -5,9 +5,6 @@
 /*
  * Common definitions for all gcc versions go here.
  */
-#define GCC_VERSION (__GNUC__ * 10000 \
-		   + __GNUC_MINOR__ * 100 \
-		   + __GNUC_PATCHLEVEL__)
 
 
 /* Optimization barrier */
@@ -36,9 +33,6 @@
   ({ unsigned long __ptr;					\
     __asm__ ("" : "=r"(__ptr) : "0"(ptr));		\
     (typeof(ptr)) (__ptr + (off)); })
-
-/* Make the optimizer believe the variable can be manipulated arbitrarily. */
-#define OPTIMIZER_HIDE_VAR(var) __asm__ ("" : "=r" (var) : "0" (var))
 
 #ifdef __CHECKER__
 #define __must_be_array(arr) 0

@@ -153,17 +153,11 @@ void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 #endif
 	if (!timeout)
 		timeout = MAX_SCHEDULE_TIMEOUT;
-
 	if (wait_event_interruptible_timeout(tty->write_wait,
-			!tty_chars_in_buffer(tty), timeout) < 0) {
-		return;
+			!tty_chars_in_buffer(tty), timeout) >= 0) {
+		if (tty->ops->wait_until_sent)
+			tty->ops->wait_until_sent(tty, timeout);
 	}
-
-	if (timeout == MAX_SCHEDULE_TIMEOUT)
-		timeout = 0;
-
-	if (tty->ops->wait_until_sent)
-		tty->ops->wait_until_sent(tty, timeout);
 }
 EXPORT_SYMBOL(tty_wait_until_sent);
 
@@ -623,7 +617,7 @@ static int set_termios(struct tty_struct *tty, void __user *arg, int opt)
 	if (opt & TERMIOS_WAIT) {
 		tty_wait_until_sent(tty, 0);
 		if (signal_pending(current))
-			return -ERESTARTSYS;
+			return -EINTR;
 	}
 
 	tty_set_termios(tty, &tmp_termios);
@@ -690,7 +684,7 @@ static int set_termiox(struct tty_struct *tty, void __user *arg, int opt)
 	if (opt & TERMIOS_WAIT) {
 		tty_wait_until_sent(tty, 0);
 		if (signal_pending(current))
-			return -ERESTARTSYS;
+			return -EINTR;
 	}
 
 	mutex_lock(&tty->termios_mutex);

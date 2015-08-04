@@ -570,7 +570,6 @@ static ssize_t ep_aio_read_retry(struct kiocb *iocb)
 			break;
 	}
 	kfree(priv->buf);
-	kfree(priv->iv);
 	kfree(priv);
 	return len;
 }
@@ -592,7 +591,6 @@ static void ep_aio_complete(struct usb_ep *ep, struct usb_request *req)
 	 */
 	if (priv->iv == NULL || unlikely(req->actual == 0)) {
 		kfree(req->buf);
-		kfree(priv->iv);
 		kfree(priv);
 		iocb->private = NULL;
 		/* aio_complete() reports bytes-transferred _and_ faults */
@@ -628,7 +626,7 @@ ep_aio_rwtail(
 	struct usb_request	*req;
 	ssize_t			value;
 
-	priv = kzalloc(sizeof *priv, GFP_KERNEL);
+	priv = kmalloc(sizeof *priv, GFP_KERNEL);
 	if (!priv) {
 		value = -ENOMEM;
 fail:
@@ -636,19 +634,11 @@ fail:
 		return value;
 	}
 	iocb->private = priv;
-	if (iv) {
-		priv->iv = kmemdup(iv, nr_segs * sizeof(struct iovec),
-				   GFP_KERNEL);
-		if (!priv->iv) {
-			kfree(priv);
-			goto fail;
-		}
-	}
+	priv->iv = iv;
 	priv->nr_segs = nr_segs;
 
 	value = get_ready_ep(iocb->ki_filp->f_flags, epdata);
 	if (unlikely(value < 0)) {
-		kfree(priv->iv);
 		kfree(priv);
 		goto fail;
 	}
@@ -682,7 +672,6 @@ fail:
 	mutex_unlock(&epdata->lock);
 
 	if (unlikely(value)) {
-		kfree(priv->iv);
 		kfree(priv);
 		put_ep(epdata);
 	} else
@@ -1504,7 +1493,7 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		}
 		break;
 
-#ifndef	CONFIG_USB_PXA25X
+#ifndef	CONFIG_USB_GADGET_PXA25X
 	/* PXA automagically handles this request too */
 	case USB_REQ_GET_CONFIGURATION:
 		if (ctrl->bRequestType != 0x80)

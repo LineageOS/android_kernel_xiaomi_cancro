@@ -155,7 +155,6 @@ void blk_set_stacking_limits(struct queue_limits *lim)
 	lim->discard_zeroes_data = 1;
 	lim->max_segments = USHRT_MAX;
 	lim->max_hw_sectors = UINT_MAX;
-	lim->max_segment_size = UINT_MAX;
 
 	lim->max_sectors = BLK_DEF_MAX_SECTORS;
 }
@@ -550,7 +549,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 		bottom = max(b->physical_block_size, b->io_min) + alignment;
 
 		/* Verify that top and bottom intervals line up */
-		if (max(top, bottom) % min(top, bottom)) {
+		if (max(top, bottom) & (min(top, bottom) - 1)) {
 			t->misaligned = 1;
 			ret = -1;
 		}
@@ -591,7 +590,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 
 	/* Find lowest common alignment_offset */
 	t->alignment_offset = lcm(t->alignment_offset, alignment)
-		% max(t->physical_block_size, t->io_min);
+		& (max(t->physical_block_size, t->io_min) - 1);
 
 	/* Verify that new alignment_offset is on a logical block boundary */
 	if (t->alignment_offset & (t->logical_block_size - 1)) {

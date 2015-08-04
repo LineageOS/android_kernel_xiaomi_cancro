@@ -226,6 +226,7 @@ int ip_cmsg_send(struct net *net, struct msghdr *msg, struct ipcm_cookie *ipc)
    They are selected only by protocol field, and then processed likely
    local ones; but only if someone wants them! Otherwise, router
    not running rsvpd will kill RSVP.
+
    It is user level problem, what it will make with them.
    I have no idea, how it will masquearde or NAT them (it is joke, joke :-)),
    but receiver should be enough clever f.e. to forward mtrace requests,
@@ -455,28 +456,19 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 	struct inet_sock *inet = inet_sk(sk);
 	int val = 0, err;
 
-	switch (optname) {
-	case IP_PKTINFO:
-	case IP_RECVTTL:
-	case IP_RECVOPTS:
-	case IP_RECVTOS:
-	case IP_RETOPTS:
-	case IP_TOS:
-	case IP_TTL:
-	case IP_HDRINCL:
-	case IP_MTU_DISCOVER:
-	case IP_RECVERR:
-	case IP_ROUTER_ALERT:
-	case IP_FREEBIND:
-	case IP_PASSSEC:
-	case IP_TRANSPARENT:
-	case IP_MINTTL:
-	case IP_NODEFRAG:
-	case IP_UNICAST_IF:
-	case IP_MULTICAST_TTL:
-	case IP_MULTICAST_ALL:
-	case IP_MULTICAST_LOOP:
-	case IP_RECVORIGDSTADDR:
+	if (((1<<optname) & ((1<<IP_PKTINFO) | (1<<IP_RECVTTL) |
+			     (1<<IP_RECVOPTS) | (1<<IP_RECVTOS) |
+			     (1<<IP_RETOPTS) | (1<<IP_TOS) |
+			     (1<<IP_TTL) | (1<<IP_HDRINCL) |
+			     (1<<IP_MTU_DISCOVER) | (1<<IP_RECVERR) |
+			     (1<<IP_ROUTER_ALERT) | (1<<IP_FREEBIND) |
+			     (1<<IP_PASSSEC) | (1<<IP_TRANSPARENT) |
+			     (1<<IP_MINTTL) | (1<<IP_NODEFRAG))) ||
+	    optname == IP_UNICAST_IF ||
+	    optname == IP_MULTICAST_TTL ||
+	    optname == IP_MULTICAST_ALL ||
+	    optname == IP_MULTICAST_LOOP ||
+	    optname == IP_RECVORIGDSTADDR) {
 		if (optlen >= sizeof(int)) {
 			if (get_user(val, (int __user *) optval))
 				return -EFAULT;
@@ -588,7 +580,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 	case IP_TTL:
 		if (optlen < 1)
 			goto e_inval;
-		if (val != -1 && (val < 1 || val > 255))
+		if (val != -1 && (val < 0 || val > 255))
 			goto e_inval;
 		inet->uc_ttl = val;
 		break;

@@ -219,11 +219,8 @@ int __cpu_disable(void)
 	/*
 	 * Flush user cache and TLB mappings, and then remove this CPU
 	 * from the vm mask set of all processes.
-	 *
-	 * Caches are flushed to the Level of Unification Inner Shareable
-	 * to write-back dirty lines to unified caches shared by all CPUs.
 	 */
-	flush_cache_louis();
+	flush_cache_all();
 	local_flush_tlb_all();
 
 	read_lock(&tasklist_lock);
@@ -313,24 +310,18 @@ static void __cpuinit smp_store_cpu_info(unsigned int cpuid)
 asmlinkage void __cpuinit secondary_start_kernel(void)
 {
 	struct mm_struct *mm = &init_mm;
-	unsigned int cpu;
-
-	/*
-	 * The identity mapping is uncached (strongly ordered), so
-	 * switch away from it before attempting any exclusive accesses.
-	 */
-	cpu_switch_mm(mm->pgd, mm);
-	enter_lazy_tlb(mm, current);
-	local_flush_tlb_all();
+	unsigned int cpu = smp_processor_id();
 
 	/*
 	 * All kernel threads share the same mm context; grab a
 	 * reference and switch to it.
 	 */
-	cpu = smp_processor_id();
 	atomic_inc(&mm->mm_count);
 	current->active_mm = mm;
 	cpumask_set_cpu(cpu, mm_cpumask(mm));
+	cpu_switch_mm(mm->pgd, mm);
+	enter_lazy_tlb(mm, current);
+	local_flush_tlb_all();
 
 	pr_debug("CPU%u: Booted secondary processor\n", cpu);
 

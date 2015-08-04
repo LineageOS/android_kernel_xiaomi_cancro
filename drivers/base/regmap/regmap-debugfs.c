@@ -90,7 +90,7 @@ static ssize_t regmap_map_read_file(struct file *file, char __user *user_buf,
 		/* If we're in the region the user is trying to read */
 		if (p >= *ppos) {
 			/* ...but not beyond it */
-			if (buf_pos + 1 + tot_len >= count)
+			if (buf_pos >= count - 1 - tot_len)
 				break;
 
 			/* Format the register */
@@ -244,12 +244,7 @@ static const struct file_operations regmap_access_fops = {
 
 void regmap_debugfs_init(struct regmap *map)
 {
-	const char *devname = "dummy";
-
-	if (map->dev)
-		devname = dev_name(map->dev);
-
-	map->debugfs = debugfs_create_dir(devname,
+	map->debugfs = debugfs_create_dir(dev_name(map->dev),
 					  regmap_debugfs_root);
 	if (!map->debugfs) {
 		dev_warn(map->dev, "Failed to create debugfs directory\n");

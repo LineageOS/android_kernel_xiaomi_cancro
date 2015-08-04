@@ -49,8 +49,6 @@ static struct snd_pcm *snd_pcm_get(struct snd_card *card, int device)
 	struct snd_pcm *pcm;
 
 	list_for_each_entry(pcm, &snd_pcm_devices, list) {
-		if (pcm->internal)
-			continue;
 		if (pcm->card == card && pcm->device == device)
 			return pcm;
 	}
@@ -62,8 +60,6 @@ static int snd_pcm_next(struct snd_card *card, int device)
 	struct snd_pcm *pcm;
 
 	list_for_each_entry(pcm, &snd_pcm_devices, list) {
-		if (pcm->internal)
-			continue;
 		if (pcm->card == card && pcm->device > device)
 			return pcm->device;
 		else if (pcm->card->number > card->number)
@@ -704,22 +700,6 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 
 EXPORT_SYMBOL(snd_pcm_new_stream);
 
-/**
- * snd_pcm_new - create a new PCM instance
- * @card: the card instance
- * @id: the id string
- * @device: the device index (zero based)
- * @playback_count: the number of substreams for playback
- * @capture_count: the number of substreams for capture
- * @rpcm: the pointer to store the new pcm instance
- *
- * Creates a new PCM instance.
- *
- * The pcm operators have to be set afterwards to the new instance
- * via snd_pcm_set_ops().
- *
- * Returns zero if successful, or a negative error code on failure.
- */
 static int _snd_pcm_new(struct snd_card *card, const char *id, int device,
 		int playback_count, int capture_count, bool internal,
 		struct snd_pcm **rpcm)
@@ -744,7 +724,6 @@ static int _snd_pcm_new(struct snd_card *card, const char *id, int device,
 	pcm->card = card;
 	pcm->device = device;
 	pcm->internal = internal;
-
 	if (id)
 		strlcpy(pcm->id, id, sizeof(pcm->id));
 	if ((err = snd_pcm_new_stream(pcm, SNDRV_PCM_STREAM_PLAYBACK, playback_count)) < 0) {
@@ -1234,19 +1213,14 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 	if (list_empty(&pcm->list))
 		goto unlock;
 
-	mutex_lock(&pcm->open_mutex);
-	wake_up(&pcm->open_wait);
 	list_del_init(&pcm->list);
 	for (cidx = 0; cidx < 2; cidx++)
-		for (substream = pcm->streams[cidx].substream; substream; substream = substream->next) {
-			snd_pcm_stream_lock_irq(substream);
+		for (substream = pcm->streams[cidx].substream; substream; substream = substream->next)
 			if (substream->runtime) {
 				substream->runtime->status->state = SNDRV_PCM_STATE_DISCONNECTED;
-				wake_up(&substream->runtime->sleep);
-				wake_up(&substream->runtime->tsleep);
-			}
-			snd_pcm_stream_unlock_irq(substream);
-		}
+                                wake_up(&substream->runtime->sleep);
+                                wake_up(&substream->runtime->tsleep);
+                        }
 	list_for_each_entry(notify, &snd_pcm_notify_list, list) {
 		notify->n_disconnect(pcm);
 	}
@@ -1270,7 +1244,6 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 			pcm->streams[cidx].vol_kctl = NULL;
 		}
 	}
-	mutex_unlock(&pcm->open_mutex);
  unlock:
 	mutex_unlock(&register_mutex);
 	return 0;

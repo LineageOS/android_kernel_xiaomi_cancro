@@ -422,7 +422,8 @@ void sg_miter_stop(struct sg_mapping_iter *miter)
 		miter->__offset += miter->consumed;
 
 		if (miter->__flags & SG_MITER_TO_SG)
-			(miter->page);
+			flush_kernel_dcache_page(miter->page);
+
 		if (miter->__flags & SG_MITER_ATOMIC) {
 			WARN_ON(!irqs_disabled());
 			kunmap_atomic(miter->addr);

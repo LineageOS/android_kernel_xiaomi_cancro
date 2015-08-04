@@ -78,7 +78,6 @@ ENTRY(v3_coherent_kern_range)
  *	- end	 - virtual end address
  */
 ENTRY(v3_coherent_user_range)
-	mov	r0, #0
 	mov	pc, lr
 
 /*
@@ -128,8 +127,8 @@ ENTRY(v3_dma_map_area)
 ENDPROC(v3_dma_unmap_area)
 ENDPROC(v3_dma_map_area)
 
-	.globl  v3_flush_kern_cache_louis
-	.equ  v3_flush_kern_cache_louis, v3_flush_kern_cache_all
+	.globl	v3_flush_kern_cache_louis
+	.equ	v3_flush_kern_cache_louis, v3_flush_kern_cache_all
 
 	__INITDATA
 

@@ -377,12 +377,10 @@ static noinline __kprobes int vmalloc_fault(unsigned long address)
 	if (pgd_none(*pgd_ref))
 		return -1;
 
-	if (pgd_none(*pgd)) {
+	if (pgd_none(*pgd))
 		set_pgd(pgd, *pgd_ref);
-		arch_flush_lazy_mmu_mode();
-	} else {
+	else
 		BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
-	}
 
 	/*
 	 * Below here mismatches are bugs because these lower tables
@@ -749,15 +747,13 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 				return;
 		}
 #endif
-		/* Kernel addresses are always protection faults: */
-		if (address >= TASK_SIZE)
-			error_code |= PF_PROT;
 
-		if (likely(show_unhandled_signals))
+		if (unlikely(show_unhandled_signals))
 			show_signal_msg(regs, error_code, address, tsk);
 
+		/* Kernel addresses are always protection faults: */
 		tsk->thread.cr2		= address;
-		tsk->thread.error_code	= error_code;
+		tsk->thread.error_code	= error_code | (address >= TASK_SIZE);
 		tsk->thread.trap_nr	= X86_TRAP_PF;
 
 		force_sig_info_fault(SIGSEGV, si_code, address, tsk, 0);
@@ -887,8 +883,6 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
 		if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|
 			     VM_FAULT_HWPOISON_LARGE))
 			do_sigbus(regs, error_code, address, fault);
-		else if (fault & VM_FAULT_SIGSEGV)
-			bad_area_nosemaphore(regs, error_code, address);
 		else
 			BUG();
 	}

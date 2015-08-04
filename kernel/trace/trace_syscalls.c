@@ -305,11 +305,9 @@ void ftrace_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 	struct ring_buffer *buffer;
 	int size;
 	int syscall_nr;
-	unsigned long irq_flags;
-	int pc;
 
 	syscall_nr = syscall_get_nr(current, regs);
-	if (syscall_nr < 0 || syscall_nr >= NR_syscalls)
+	if (syscall_nr < 0)
 		return;
 	if (!test_bit(syscall_nr, enabled_enter_syscalls))
 		return;
@@ -320,11 +318,8 @@ void ftrace_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 
 	size = sizeof(*entry) + sizeof(unsigned long) * sys_data->nb_args;
 
-	local_save_flags(irq_flags);
-	pc = preempt_count();
-
 	event = trace_current_buffer_lock_reserve(&buffer,
-			sys_data->enter_event->event.type, size, irq_flags, pc);
+			sys_data->enter_event->event.type, size, 0, 0);
 	if (!event)
 		return;
 
@@ -334,8 +329,7 @@ void ftrace_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 
 	if (!filter_current_check_discard(buffer, sys_data->enter_event,
 					  entry, event))
-		trace_current_buffer_unlock_commit(buffer, event,
-						   irq_flags, pc);
+		trace_current_buffer_unlock_commit(buffer, event, 0, 0);
 }
 
 void ftrace_syscall_exit(void *ignore, struct pt_regs *regs, long ret)
@@ -345,11 +339,9 @@ void ftrace_syscall_exit(void *ignore, struct pt_regs *regs, long ret)
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer;
 	int syscall_nr;
-	unsigned long irq_flags;
-	int pc;
 
 	syscall_nr = syscall_get_nr(current, regs);
-	if (syscall_nr < 0 || syscall_nr >= NR_syscalls)
+	if (syscall_nr < 0)
 		return;
 	if (!test_bit(syscall_nr, enabled_exit_syscalls))
 		return;
@@ -358,12 +350,8 @@ void ftrace_syscall_exit(void *ignore, struct pt_regs *regs, long ret)
 	if (!sys_data)
 		return;
 
-	local_save_flags(irq_flags);
-	pc = preempt_count();
-
 	event = trace_current_buffer_lock_reserve(&buffer,
-			sys_data->exit_event->event.type, sizeof(*entry),
-			irq_flags, pc);
+			sys_data->exit_event->event.type, sizeof(*entry), 0, 0);
 	if (!event)
 		return;
 
@@ -373,8 +361,7 @@ void ftrace_syscall_exit(void *ignore, struct pt_regs *regs, long ret)
 
 	if (!filter_current_check_discard(buffer, sys_data->exit_event,
 					  entry, event))
-		trace_current_buffer_unlock_commit(buffer, event,
-						   irq_flags, pc);
+		trace_current_buffer_unlock_commit(buffer, event, 0, 0);
 }
 
 int reg_event_syscall_enter(struct ftrace_event_call *call)
@@ -519,8 +506,6 @@ static void perf_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 	int size;
 
 	syscall_nr = syscall_get_nr(current, regs);
-	if (syscall_nr < 0 || syscall_nr >= NR_syscalls)
-		return;
 	if (!test_bit(syscall_nr, enabled_perf_enter_syscalls))
 		return;
 
@@ -595,8 +580,6 @@ static void perf_syscall_exit(void *ignore, struct pt_regs *regs, long ret)
 	int size;
 
 	syscall_nr = syscall_get_nr(current, regs);
-	if (syscall_nr < 0 || syscall_nr >= NR_syscalls)
-		return;
 	if (!test_bit(syscall_nr, enabled_perf_exit_syscalls))
 		return;
 

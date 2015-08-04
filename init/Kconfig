@@ -575,7 +575,6 @@ config LOG_BUF_SHIFT
 	int "Kernel log buffer size (16 => 64KB, 17 => 128KB)"
 	range 12 21
 	default 17
-	depends on PRINTK
 	help
 	  Select kernel log buffer size as a power of 2.
 	  Examples:
@@ -978,7 +977,7 @@ config PANIC_TIMEOUT
 menuconfig EXPERT
 	bool "Configure standard kernel features (expert users)"
 	# Unhide debug options, to make the on-by-default options visible
-	# NUKE DEBUG_KERNEL
+	select DEBUG_KERNEL
 	help
 	  This option allows certain base kernel options and settings
           to be disabled or tweaked. This is for specialized
@@ -1098,13 +1097,6 @@ config FUTEX
 	  Disabling this option will cause the kernel to be built without
 	  support for "fast userspace mutexes".  The resulting kernel may not
 	  run glibc-based applications correctly.
-
-config HAVE_FUTEX_CMPXCHG
-	bool
-	help
-	  Architectures should select this if futex_atomic_cmpxchg_inatomic()
-	  is implemented and always working. This removes a couple of runtime
-	  checks.
 
 config EPOLL
 	bool "Enable eventpoll support" if EXPERT

@@ -633,9 +633,11 @@ trip_point_temp_set(struct device *dev, struct device_attribute *attr,
 	if (!sscanf(buf, "%ld", &temperature))
 		return -EINVAL;
 
-	ret = tz->ops->set_trip_temp(tz, trip, temperature);
+	ret = sensor_set_trip_temp(tz, trip, temperature);
+
 	if (ret)
 		return ret;
+
 	return count;
 }
 
@@ -1857,7 +1859,6 @@ static int __init thermal_init(void)
 		idr_destroy(&thermal_cdev_idr);
 		mutex_destroy(&thermal_idr_lock);
 		mutex_destroy(&thermal_list_lock);
-		return result;
 	}
 	result = genetlink_init();
 	return result;

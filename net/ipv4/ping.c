@@ -153,7 +153,6 @@ void ping_unhash(struct sock *sk)
 	if (sk_hashed(sk)) {
 		write_lock_bh(&ping_table.lock);
 		hlist_nulls_del(&sk->sk_nulls_node);
-		sk_nulls_node_init(&sk->sk_nulls_node);
 		sock_put(sk);
 		isk->inet_num = 0;
 		isk->inet_sport = 0;
@@ -782,7 +781,7 @@ int ping_v4_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		err = PTR_ERR(rt);
 		rt = NULL;
 		if (err == -ENETUNREACH)
-			IP_INC_STATS(net, IPSTATS_MIB_OUTNOROUTES);
+			IP_INC_STATS_BH(net, IPSTATS_MIB_OUTNOROUTES);
 		goto out;
 	}
 

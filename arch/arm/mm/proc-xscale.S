@@ -410,8 +410,8 @@ ENTRY(xscale_dma_unmap_area)
 	mov	pc, lr
 ENDPROC(xscale_dma_unmap_area)
 
-	.globl  xscale_flush_kern_cache_louis
-	.equ  xscale_flush_kern_cache_louis, xscale_flush_kern_cache_all
+	.globl	xscale_flush_kern_cache_louis
+	.equ	xscale_flush_kern_cache_louis, xscale_flush_kern_cache_all
 
 	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
 	define_cache_functions xscale
@@ -527,14 +527,14 @@ ENTRY(cpu_xscale_set_pte_ext)
 
 .globl	cpu_xscale_suspend_size
 .equ	cpu_xscale_suspend_size, 4 * 6
-#ifdef CONFIG_ARM_CPU_SUSPEND
+#ifdef CONFIG_PM_SLEEP
 ENTRY(cpu_xscale_do_suspend)
 	stmfd	sp!, {r4 - r9, lr}
 	mrc	p14, 0, r4, c6, c0, 0	@ clock configuration, for turbo mode
 	mrc	p15, 0, r5, c15, c1, 0	@ CP access reg
 	mrc	p15, 0, r6, c13, c0, 0	@ PID
 	mrc	p15, 0, r7, c3, c0, 0	@ domain ID
-	mrc	p15, 0, r8, c1, c0, 1	@ auxiliary control reg
+	mrc	p15, 0, r8, c1, c1, 0	@ auxiliary control reg
 	mrc	p15, 0, r9, c1, c0, 0	@ control reg
 	bic	r4, r4, #2		@ clear frequency change bit
 	stmia	r0, {r4 - r9}		@ store cp regs
@@ -551,7 +551,7 @@ ENTRY(cpu_xscale_do_resume)
 	mcr	p15, 0, r6, c13, c0, 0	@ PID
 	mcr	p15, 0, r7, c3, c0, 0	@ domain ID
 	mcr	p15, 0, r1, c2, c0, 0	@ translation table base addr
-	mcr	p15, 0, r8, c1, c0, 1	@ auxiliary control reg
+	mcr	p15, 0, r8, c1, c1, 0	@ auxiliary control reg
 	mov	r0, r9			@ control register
 	b	cpu_resume_mmu
 ENDPROC(cpu_xscale_do_resume)

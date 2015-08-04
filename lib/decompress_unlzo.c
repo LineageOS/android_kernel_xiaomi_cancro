@@ -31,7 +31,7 @@
  */
 
 #ifdef STATIC
-#include "lzo/lzo1x_decompress_safe.c"
+#include "lzo/lzo1x_decompress.c"
 #else
 #include <linux/decompress/unlzo.h>
 #endif
@@ -51,7 +51,7 @@ static const unsigned char lzop_magic[] = {
 #define HEADER_SIZE_MIN       (9 + 7     + 4 + 8     + 1       + 4)
 #define HEADER_SIZE_MAX       (9 + 7 + 1 + 8 + 8 + 4 + 1 + 255 + 4)
 
-STATIC int INIT parse_header(u8 *input, int *skip, int in_len)
+STATIC inline int INIT parse_header(u8 *input, int *skip, int in_len)
 {
 	int l;
 	u8 *parse = input;

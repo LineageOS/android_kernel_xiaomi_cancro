@@ -214,24 +214,24 @@ static int xen_hvm_console_init(void)
 	/* already configured */
 	if (info->intf != NULL)
 		return 0;
-	/*
-	 * If the toolstack (or the hypervisor) hasn't set these values, the
-	 * default value is 0. Even though mfn = 0 and evtchn = 0 are
-	 * theoretically correct values, in practice they never are and they
-	 * mean that a legacy toolstack hasn't initialized the pv console correctly.
-	 */
+
 	r = hvm_get_parameter(HVM_PARAM_CONSOLE_EVTCHN, &v);
-	if (r < 0 || v == 0)
-		goto err;
+	if (r < 0) {
+		kfree(info);
+		return -ENODEV;
+	}
 	info->evtchn = v;
-	v = 0;
-	r = hvm_get_parameter(HVM_PARAM_CONSOLE_PFN, &v);
-	if (r < 0 || v == 0)
-		goto err;
+	hvm_get_parameter(HVM_PARAM_CONSOLE_PFN, &v);
+	if (r < 0) {
+		kfree(info);
+		return -ENODEV;
+	}
 	mfn = v;
 	info->intf = ioremap(mfn << PAGE_SHIFT, PAGE_SIZE);
-	if (info->intf == NULL)
-		goto err;
+	if (info->intf == NULL) {
+		kfree(info);
+		return -ENODEV;
+	}
 	info->vtermno = HVC_COOKIE;
 
 	spin_lock(&xencons_lock);
@@ -239,9 +239,6 @@ static int xen_hvm_console_init(void)
 	spin_unlock(&xencons_lock);
 
 	return 0;
-err:
-	kfree(info);
-	return -ENODEV;
 }
 
 static int xen_pv_console_init(void)

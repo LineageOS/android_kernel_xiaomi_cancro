@@ -392,15 +392,13 @@ struct perf_event_mmap_page {
 	/*
 	 * Control data for the mmap() data buffer.
 	 *
-	 * User-space reading the @data_head value should issue an smp_rmb(),
-	 * after reading this value.
+	 * User-space reading the @data_head value should issue an rmb(), on
+	 * SMP capable platforms, after reading this value -- see
+	 * perf_event_wakeup().
 	 *
 	 * When the mapping is PROT_WRITE the @data_tail value should be
-	 * written by userspace to reflect the last read data, after issueing
-	 * an smp_mb() to separate the data read from the ->data_tail store.
-	 * In this case the kernel will not over-write unread data.
-	 *
-	 * See perf_output_put_handle() for the data ordering.
+	 * written by userspace to reflect the last read data. In this case
+	 * the kernel will not over-write unread data.
 	 */
 	__u64   data_head;		/* head in the data section */
 	__u64	data_tail;		/* user-space written tail */
@@ -930,7 +928,7 @@ struct perf_event {
 	struct hw_perf_event		hw;
 
 	struct perf_event_context	*ctx;
-	atomic_long_t			refcount;
+	struct file			*filp;
 
 	/*
 	 * These accumulate total time (in nanoseconds) that children
@@ -955,7 +953,8 @@ struct perf_event {
 	/* mmap bits */
 	struct mutex			mmap_mutex;
 	atomic_t			mmap_count;
-
+	int				mmap_locked;
+	struct user_struct		*mmap_user;
 	struct ring_buffer		*rb;
 	struct list_head		rb_entry;
 
@@ -1068,7 +1067,7 @@ struct perf_cpu_context {
 	int				exclusive;
 	struct list_head		rotation_list;
 	int				jiffies_interval;
-	struct pmu			*unique_pmu;
+	struct pmu			*active_pmu;
 	struct perf_cgroup		*cgrp;
 };
 
@@ -1332,12 +1331,6 @@ static inline void perf_swevent_put_recursion_context(int rctx)		{ }
 static inline void perf_event_enable(struct perf_event *event)		{ }
 static inline void perf_event_disable(struct perf_event *event)		{ }
 static inline void perf_event_task_tick(void)				{ }
-#endif
-
-#if defined(CONFIG_PERF_EVENTS) && defined(CONFIG_CPU_SUP_INTEL)
-extern void perf_restore_debug_store(void);
-#else
-static inline void perf_restore_debug_store(void)			{ }
 #endif
 
 #define perf_output_put(handle, x) perf_output_copy((handle), &(x), sizeof(x))

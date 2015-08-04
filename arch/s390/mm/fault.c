@@ -237,12 +237,6 @@ static noinline void do_fault_error(struct pt_regs *regs, int fault)
 				do_no_context(regs);
 			else
 				pagefault_out_of_memory();
-		} else if (fault & VM_FAULT_SIGSEGV) {
-			/* Kernel mode? Handle exceptions or die */
-			if (!user_mode(regs))
-				do_no_context(regs);
-			else
-				do_sigsegv(regs, SEGV_MAPERR);
 		} else if (fault & VM_FAULT_SIGBUS) {
 			/* Kernel mode? Handle exceptions or die */
 			if (!(regs->psw.mask & PSW_MASK_PSTATE))
@@ -449,7 +443,6 @@ int __handle_fault(unsigned long uaddr, unsigned long pgm_int_code, int write)
 	struct pt_regs regs;
 	int access, fault;
 
-	/* Emulate a uaccess fault from kernel mode. */
 	regs.psw.mask = psw_kernel_bits | PSW_MASK_DAT | PSW_MASK_MCHECK;
 	if (!irqs_disabled())
 		regs.psw.mask |= PSW_MASK_IO | PSW_MASK_EXT;
@@ -459,12 +452,12 @@ int __handle_fault(unsigned long uaddr, unsigned long pgm_int_code, int write)
 	regs.int_parm_long = (uaddr & PAGE_MASK) | 2;
 	access = write ? VM_WRITE : VM_READ;
 	fault = do_exception(&regs, access);
-	/*
-	 * Since the fault happened in kernel mode while performing a uaccess
-	 * all we need to do now is emulating a fixup in case "fault" is not
-	 * zero.
-	 * For the calling uaccess functions this results always in -EFAULT.
-	 */
+	if (unlikely(fault)) {
+		if (fault & VM_FAULT_OOM)
+			return -EFAULT;
+		else if (fault & VM_FAULT_SIGBUS)
+			do_sigbus(&regs);
+	}
 	return fault ? -EFAULT : 0;
 }
 

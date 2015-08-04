@@ -39,12 +39,8 @@ int radeon_driver_unload_kms(struct drm_device *dev)
 
 	if (rdev == NULL)
 		return 0;
-	if (rdev->rmmio == NULL)
-		goto done_free;
 	radeon_modeset_fini(rdev);
 	radeon_device_fini(rdev);
-
-done_free:
 	kfree(rdev);
 	dev->dev_private = NULL;
 	return 0;
@@ -428,8 +424,6 @@ int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 
 	/* Get associated drm_crtc: */
 	drmcrtc = &rdev->mode_info.crtcs[crtc]->base;
-	if (!drmcrtc)
-		return -EINVAL;
 
 	/* Helper routine in DRM core does all the work: */
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc, max_error,

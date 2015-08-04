@@ -1450,7 +1450,6 @@ static struct rcg_clk ce1_clk_src = {
 static struct clk_freq_tbl ftbl_gcc_ce2_clk[] = {
 	F( 50000000,  gpll0,  12,   0,   0),
 	F(100000000,  gpll0,   6,   0,   0),
-	F(150000000,  gpll0,   4,   0,   0),
 	F_END
 };
 
@@ -1471,7 +1470,7 @@ static struct rcg_clk ce2_clk_src = {
 	.c = {
 		.dbg_name = "ce2_clk_src",
 		.ops = &clk_ops_rcg,
-		VDD_DIG_FMAX_MAP2(LOW, 50000000, NOMINAL, 150000000),
+		VDD_DIG_FMAX_MAP2(LOW, 50000000, NOMINAL, 100000000),
 		CLK_INIT(ce2_clk_src.c),
 	},
 };
@@ -5015,15 +5014,10 @@ static struct clk_lookup msm_clocks_8974_common[] __initdata = {
 	CLK_LOOKUP("bus_clk",      gcc_ce2_axi_clk.c,     "qcedev.0"),
 	CLK_LOOKUP("core_clk_src", ce2_clk_src.c,         "qcedev.0"),
 
-	CLK_LOOKUP("core_clk",     gcc_ce2_clk.c,     "fd440000.qcrypto"),
-	CLK_LOOKUP("iface_clk",    gcc_ce2_ahb_clk.c, "fd440000.qcrypto"),
-	CLK_LOOKUP("bus_clk",      gcc_ce2_axi_clk.c, "fd440000.qcrypto"),
-	CLK_LOOKUP("core_clk_src", ce2_clk_src.c,     "fd440000.qcrypto"),
-
-	CLK_LOOKUP("core_clk",     gcc_ce2_clk.c,     "fd440000.qcrypto1"),
-	CLK_LOOKUP("iface_clk",    gcc_ce2_ahb_clk.c, "fd440000.qcrypto1"),
-	CLK_LOOKUP("bus_clk",      gcc_ce2_axi_clk.c, "fd440000.qcrypto1"),
-	CLK_LOOKUP("core_clk_src", ce2_clk_src.c,     "fd440000.qcrypto1"),
+	CLK_LOOKUP("core_clk",     gcc_ce2_clk.c,     "qcrypto.0"),
+	CLK_LOOKUP("iface_clk",    gcc_ce2_ahb_clk.c, "qcrypto.0"),
+	CLK_LOOKUP("bus_clk",      gcc_ce2_axi_clk.c, "qcrypto.0"),
+	CLK_LOOKUP("core_clk_src", ce2_clk_src.c,     "qcrypto.0"),
 
 	CLK_LOOKUP("core_clk",     gcc_ce1_clk.c,         "qseecom"),
 	CLK_LOOKUP("iface_clk",    gcc_ce1_ahb_clk.c,     "qseecom"),

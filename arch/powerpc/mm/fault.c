@@ -419,11 +419,7 @@ good_area:
 	 */
 	fault = handle_mm_fault(mm, vma, address, flags);
 	if (unlikely(fault & (VM_FAULT_RETRY|VM_FAULT_ERROR))) {
-		int rc;
-
-		if (fault & VM_FAULT_SIGSEGV)
-			goto bad_area;
-		rc = mm_fault_error(regs, address, fault);
+		int rc = mm_fault_error(regs, address, fault);
 		if (rc >= MM_FAULT_RETURN)
 			return rc;
 	}
