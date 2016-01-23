@@ -51,6 +51,6 @@ config ENABLE_LINUX_REG
 
 config QCOM_TDLS
     bool "Enable TDLS feature"
-    default n
+    default y
 
 endif # PRIMA_WLAN || PRONTO_WLAN

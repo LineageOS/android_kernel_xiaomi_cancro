@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -18,25 +18,11 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
+
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
+ * This file was originally distributed by Qualcomm Atheros, Inc.
+ * under proprietary terms before Copyright ownership was assigned
+ * to the Linux Foundation.
  */
 
 /*===========================================================================
@@ -45,9 +31,6 @@
   @brief Virtual Operating System Services Memory API
 
   
-  Copyright (c) 2008 QUALCOMM Incorporated.
-  All Rights Reserved.
-  Qualcomm Confidential and Proprietary
 ===========================================================================*/
 
 /*=========================================================================== 
@@ -72,11 +55,14 @@
  * ------------------------------------------------------------------------*/
 #include "vos_memory.h"
 #include "vos_trace.h"
+#include "vos_api.h"
+#include <vmalloc.h>
 
 #ifdef CONFIG_WCNSS_MEM_PRE_ALLOC
 #include <linux/wcnss_wlan.h>
 #define WCNSS_PRE_ALLOC_GET_THRESHOLD (4*1024)
 #endif
+#define VOS_GET_MEMORY_TIME_THRESHOLD 3000
 
 #ifdef MEMORY_DEBUG
 #include "wlan_hdd_dp_utils.h"
@@ -203,19 +189,21 @@ v_VOID_t * vos_mem_malloc_debug( v_SIZE_t size, char* fileName, v_U32_t lineNum)
    struct s_vos_mem_struct* memStruct;
    v_VOID_t* memPtr = NULL;
    v_SIZE_t new_size;
+   int flags = GFP_KERNEL;
+   unsigned long IrqFlags;
+   unsigned long  time_before_kmalloc;
 
-   if (size > (1024*1024))
+
+   if (size > (1024*1024) || size == 0)
    {
        VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-               "%s: called with arg > 1024K; passed in %d !!!", __func__,size); 
+               "%s: called with invalid arg %u !!!", __func__, size);
        return NULL;
    }
 
-   if (in_interrupt())
+   if (in_interrupt() || irqs_disabled() || in_atomic())
    {
-       VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, "%s cannot be "
-                 "called from interrupt context!!!", __func__);
-       return NULL;
+      flags = GFP_ATOMIC;
    }
 
    if (!memory_dbug_flag)
@@ -229,12 +217,30 @@ v_VOID_t * vos_mem_malloc_debug( v_SIZE_t size, char* fileName, v_U32_t lineNum)
                return pmem;
       }
 #endif
-      return kmalloc(size, GFP_KERNEL);
+      time_before_kmalloc = vos_timer_get_system_time();
+      memPtr = kmalloc(size, flags);
+
+      /* If time taken by kmalloc is greater than VOS_GET_MEMORY_TIME_THRESHOLD
+       * msec */
+      if (vos_timer_get_system_time() - time_before_kmalloc >=
+                                    VOS_GET_MEMORY_TIME_THRESHOLD)
+         VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+               "%s: kmalloc took %lu msec", __func__,
+               vos_timer_get_system_time() - time_before_kmalloc);
+      return memPtr;
    }
 
    new_size = size + sizeof(struct s_vos_mem_struct) + 8; 
 
-   memStruct = (struct s_vos_mem_struct*)kmalloc(new_size,GFP_KERNEL);
+   time_before_kmalloc = vos_timer_get_system_time();
+   memStruct = (struct s_vos_mem_struct*)kmalloc(new_size, flags);
+   /* If time taken by kmalloc is greater than VOS_GET_MEMORY_TIME_THRESHOLD
+    * msec */
+   if (vos_timer_get_system_time() - time_before_kmalloc >=
+                              VOS_GET_MEMORY_TIME_THRESHOLD)
+      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+          "%s: kmalloc took %lu msec", __func__,
+          vos_timer_get_system_time() - time_before_kmalloc);
 
    if(memStruct != NULL)
    {
@@ -247,9 +253,9 @@ v_VOID_t * vos_mem_malloc_debug( v_SIZE_t size, char* fileName, v_U32_t lineNum)
       vos_mem_copy(&memStruct->header[0], &WLAN_MEM_HEADER[0], sizeof(WLAN_MEM_HEADER));
       vos_mem_copy( (v_U8_t*)(memStruct + 1) + size, &WLAN_MEM_TAIL[0], sizeof(WLAN_MEM_TAIL));
 
-      spin_lock(&vosMemList.lock);
+      spin_lock_irqsave(&vosMemList.lock, IrqFlags);
       vosStatus = hdd_list_insert_front(&vosMemList, &memStruct->pNode);
-      spin_unlock(&vosMemList.lock);
+      spin_unlock_irqrestore(&vosMemList.lock, IrqFlags);
       if(VOS_STATUS_SUCCESS != vosStatus)
       {
          VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, 
@@ -264,15 +270,9 @@ v_VOID_t * vos_mem_malloc_debug( v_SIZE_t size, char* fileName, v_U32_t lineNum)
 v_VOID_t vos_mem_free( v_VOID_t *ptr )
 {
 
+    unsigned long IrqFlags;
     if (ptr == NULL)
         return;
-
-    if (in_interrupt())
-    {
-        VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, "%s cannot be "
-                  "called from interrupt context!!!", __func__);
-        return;
-    }
 
     if (!memory_dbug_flag)
     {
@@ -287,9 +287,9 @@ v_VOID_t vos_mem_free( v_VOID_t *ptr )
         VOS_STATUS vosStatus;
         struct s_vos_mem_struct* memStruct = ((struct s_vos_mem_struct*)ptr) - 1;
 
-        spin_lock(&vosMemList.lock);
+        spin_lock_irqsave(&vosMemList.lock, IrqFlags);
         vosStatus = hdd_list_remove_node(&vosMemList, &memStruct->pNode);
-        spin_unlock(&vosMemList.lock);
+        spin_unlock_irqrestore(&vosMemList.lock, IrqFlags);
 
         if(VOS_STATUS_SUCCESS == vosStatus)
         {
@@ -318,18 +318,22 @@ v_VOID_t vos_mem_free( v_VOID_t *ptr )
 #else
 v_VOID_t * vos_mem_malloc( v_SIZE_t size )
 {
+   int flags = GFP_KERNEL;
+   v_VOID_t* memPtr = NULL;
 #ifdef CONFIG_WCNSS_MEM_PRE_ALLOC
     v_VOID_t* pmem;
 #endif    
-   if (size > (1024*1024))
+   unsigned long  time_before_kmalloc;
+
+   if (size > (1024*1024) || size == 0)
    {
-       VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, "%s: called with arg > 1024K; passed in %d !!!", __func__,size); 
+       VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+               "%s: called with invalid arg %u !!!", __func__, size);
        return NULL;
    }
-   if (in_interrupt())
+   if (in_interrupt() || irqs_disabled() || in_atomic())
    {
-      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, "%s cannot be called from interrupt context!!!", __func__);
-      return NULL;
+      flags = GFP_ATOMIC;
    }
 #ifdef CONFIG_WCNSS_MEM_PRE_ALLOC
    if(size > WCNSS_PRE_ALLOC_GET_THRESHOLD)
@@ -339,19 +343,25 @@ v_VOID_t * vos_mem_malloc( v_SIZE_t size )
            return pmem;
    }
 #endif
-   return kmalloc(size, GFP_KERNEL);
-}   
+   time_before_kmalloc = vos_timer_get_system_time();
+   memPtr = kmalloc(size, flags);
+   /* If time taken by kmalloc is greater than VOS_GET_MEMORY_TIME_THRESHOLD
+    * msec */
+   if (vos_timer_get_system_time() - time_before_kmalloc >=
+                              VOS_GET_MEMORY_TIME_THRESHOLD)
+      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+          "%s: kmalloc took %lu msec", __func__,
+          vos_timer_get_system_time() - time_before_kmalloc);
+
+   return memPtr;
+
+}
 
 v_VOID_t vos_mem_free( v_VOID_t *ptr )
 {
     if (ptr == NULL)
       return;
 
-    if (in_interrupt())
-    {
-      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, "%s cannot be called from interrupt context!!!", __func__);
-      return;
-    }
 #ifdef CONFIG_WCNSS_MEM_PRE_ALLOC
     if(wcnss_prealloc_put(ptr))
         return;
@@ -360,6 +370,31 @@ v_VOID_t vos_mem_free( v_VOID_t *ptr )
     kfree(ptr);
 }
 #endif
+
+v_VOID_t * vos_mem_vmalloc(v_SIZE_t size)
+{
+    if (size == 0 || size >= (1024*1024))
+    {
+        VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                  "%s invalid size: %u", __func__, size);
+        return NULL;
+    }
+
+    return vmalloc(size);
+}
+
+v_VOID_t vos_mem_vfree(void *addr)
+{
+    if (addr == NULL)
+    {
+        VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                  "%s NULL address passed to free", __func__);
+        return;
+    }
+
+    vfree(addr);
+    return;
+}
 
 v_VOID_t vos_mem_set( v_VOID_t *ptr, v_SIZE_t numBytes, v_BYTE_t value )
 {
@@ -388,11 +423,6 @@ v_VOID_t vos_mem_zero( v_VOID_t *ptr, v_SIZE_t numBytes )
    
 }
 
-
-//This function is to validate one list in SME. We suspect someone corrupt te list. This code need to be removed
-//once the issue is fixed.
-extern int csrCheckValidateLists(void * dest, const void *src, v_SIZE_t num, int idx);
-
 v_VOID_t vos_mem_copy( v_VOID_t *pDst, const v_VOID_t *pSrc, v_SIZE_t numBytes )
 {
    if (0 == numBytes)
@@ -409,10 +439,7 @@ v_VOID_t vos_mem_copy( v_VOID_t *pDst, const v_VOID_t *pSrc, v_SIZE_t numBytes )
       VOS_ASSERT(0);
       return;
    }
-   //These two check function calls are to see if someone corrupt the list while doing mem copy.
-   csrCheckValidateLists(pDst, pSrc, numBytes, 1);
    memcpy(pDst, pSrc, numBytes);
-   csrCheckValidateLists(pDst, pSrc, numBytes, 2);
 }
 
 v_VOID_t vos_mem_move( v_VOID_t *pDst, const v_VOID_t *pSrc, v_SIZE_t numBytes )
