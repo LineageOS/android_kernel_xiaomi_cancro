@@ -37,6 +37,7 @@
 #include <linux/slab.h>
 #include <linux/if_vlan.h>
 
+
 #define DRIVER_VERSION "22-Dec-2011"
 #define DRIVER_NAME "asix"
 
