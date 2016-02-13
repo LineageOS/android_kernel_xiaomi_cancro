@@ -948,6 +948,9 @@ static inline int hid_hw_power(struct hid_device *hdev, int level)
 }
 
 
+int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
+		int interrupt);
+
 /**
  * hid_hw_request - send report request to device
  *

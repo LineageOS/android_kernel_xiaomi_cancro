@@ -303,6 +303,7 @@ static int hidraw_fasync(int fd, struct file *file, int on)
 	return fasync_helper(fd, file, on, &list->fasync);
 }
 
+
 static void drop_ref(struct hidraw *hidraw, int exists_bit)
 {
 	if (exists_bit) {
@@ -542,6 +543,10 @@ void hidraw_disconnect(struct hid_device *hid)
 
 	drop_ref(hidraw, 1);
 
+
+
+	drop_ref(hidraw, 1);
+
 	mutex_unlock(&minors_lock);
 }
 EXPORT_SYMBOL_GPL(hidraw_disconnect);
@@ -573,6 +578,7 @@ int __init hidraw_init(void)
 		goto error_class;
 
 	printk(KERN_INFO "hidraw: raw HID events driver (C) Jiri Kosina\n");
+
 out:
 	return result;
 
