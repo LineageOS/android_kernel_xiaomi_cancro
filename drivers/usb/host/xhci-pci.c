@@ -123,10 +123,14 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 		xhci->quirks |= XHCI_SPURIOUS_REBOOT;
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 		xhci->quirks |= XHCI_AVOID_BEI;
 >>>>>>> 78f26f3... Linux 3.4.11 - 3.4.20
 =======
+=======
+		xhci->quirks |= XHCI_SPURIOUS_WAKEUP;
+>>>>>>> 80fe28c... Linux 3.4.112
 	}
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
 		(pdev->device == PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_XHCI ||
