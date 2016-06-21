@@ -8,6 +8,7 @@
 #
 # Portions Copyright (c) 2008-2012 Immersion Corporation. All Rights Reserved.
 # Copyright (C) 2015 XiaoMi, Inc.
+# Copyright (C) 2016 sndnvaps<sndnvaps@gmail.com>
 #
 # This file contains Original Code and/or Modifications of Original Code
 # as defined in and that are subject to the GNU Public License v2 -
@@ -26,16 +27,6 @@
 # under the License.
 # =========================================================================
 
-ifeq ($(KERNEL_ROOT),)
-    override KERNEL_ROOT = /usr/src/linux
-endif
-
-EXTRA_CFLAGS += -I$(M)
-
+subdir-ccflags-$(CONFIG_TSPDRV) += -Idrivers/tspdrv
 obj-$(CONFIG_TSPDRV) += tspdrv.o
 
-all:
-	@$(MAKE) -C $(KERNEL_ROOT) M=$(shell pwd) modules
-
-clean:
-	@$(MAKE) -C $(KERNEL_ROOT) M=$(shell pwd) clean
