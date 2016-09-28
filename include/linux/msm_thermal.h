@@ -60,4 +60,10 @@ static inline int msm_thermal_set_frequency(uint32_t cpu, uint32_t freq,
 }
 #endif
 
+#ifdef CONFIG_SMP
+#ifdef CONFIG_MSM_HOTPLUG
+int msm_thermal_deny_cpu_up(uint32_t cpu);
+#endif
+#endif
+
 #endif /*__MSM_THERMAL_H*/
