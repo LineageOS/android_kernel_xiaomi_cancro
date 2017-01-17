@@ -90,7 +90,7 @@ void __register_binfmt(struct linux_binfmt * fmt, int insert)
 	insert ? list_add(&fmt->lh, &formats) :
 		 list_add_tail(&fmt->lh, &formats);
 	write_unlock(&binfmt_lock);
-	return 0;
+	return;
 }
 
 EXPORT_SYMBOL(__register_binfmt);
