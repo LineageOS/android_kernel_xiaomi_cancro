@@ -416,8 +416,24 @@ static int cpufreq_parse_governor(char *str_governor, unsigned int *policy,
 			ret = request_module("cpufreq_%s", str_governor);
 			mutex_lock(&cpufreq_governor_mutex);
 
+			/*
+			 * At this point, we are about to locate the governor,
+			 * assuming that it was not found above. Normally, if
+			 * this part fails, we will exit without finding the
+			 * governor that the user requested and it is fine.
+			 * However, the one scenario where this is really bad
+			 * is when a custom ROM sets a custom governor that is
+			 * available in the ROM's kernel but not in others,
+			 * because the kernel will not change from the
+			 * performance governor at boot. Thus, if the governor
+			 * is not found, let's try going for interactive before
+			 * erroring out
+			 */
+
 			if (ret == 0)
 				t = __find_governor(str_governor);
+			else
+				t = __find_governor("interactive");
 		}
 
 		if (t != NULL) {
