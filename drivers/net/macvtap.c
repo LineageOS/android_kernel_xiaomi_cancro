@@ -534,10 +534,8 @@ static int zerocopy_sg_from_iovec(struct sk_buff *skb, const struct iovec *from,
 			return -EMSGSIZE;
 		num_pages = get_user_pages_fast(base, size, 0, &page[i]);
 		if (num_pages != size) {
-			int j;
-
-			for (j = 0; j < num_pages; j++)
-				put_page(page[i + j]);
+			for (i = 0; i < num_pages; i++)
+				put_page(page[i]);
 		}
 		truesize = size * PAGE_SIZE;
 		skb->data_len += len;
@@ -656,7 +654,6 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 	int vnet_hdr_len = 0;
 	int copylen = 0;
 	bool zerocopy = false;
-	size_t linear;
 
 	if (q->flags & IFF_VNET_HDR) {
 		vnet_hdr_len = q->vnet_hdr_sz;
@@ -711,14 +708,11 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 			copylen = vnet_hdr.hdr_len;
 		if (!copylen)
 			copylen = GOODCOPY_LEN;
-		linear = copylen;
-	} else {
+	} else
 		copylen = len;
-		linear = vnet_hdr.hdr_len;
-	}
 
 	skb = macvtap_alloc_skb(&q->sk, NET_IP_ALIGN, copylen,
-				linear, noblock, &err);
+				vnet_hdr.hdr_len, noblock, &err);
 	if (!skb)
 		goto err;
 
