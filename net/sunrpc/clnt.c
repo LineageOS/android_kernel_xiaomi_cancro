@@ -1338,7 +1338,6 @@ call_refreshresult(struct rpc_task *task)
 		rpc_delay(task, 3*HZ);
 	case -EAGAIN:
 		status = -EACCES;
-	case -EKEYEXPIRED:
 		if (!task->tk_cred_retry)
 			break;
 		task->tk_cred_retry--;
