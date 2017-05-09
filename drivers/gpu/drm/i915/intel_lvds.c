@@ -1097,8 +1097,7 @@ bool intel_lvds_init(struct drm_device *dev)
 		goto failed;
 
 out:
-	if (HAS_PCH_SPLIT(dev) &&
-	    !(dev_priv->quirks & QUIRK_NO_PCH_PWM_ENABLE)) {
+	if (HAS_PCH_SPLIT(dev)) {
 		u32 pwm;
 
 		pipe = (I915_READ(PCH_LVDS) & LVDS_PIPEB_SELECT) ? 1 : 0;
