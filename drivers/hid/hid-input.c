@@ -361,12 +361,7 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 					      dev->battery_report_type);
 
 		if (ret != 2) {
-<<<<<<< HEAD
 			ret = -ENODATA;
-=======
-			if (ret >= 0)
-				ret = -EINVAL;
->>>>>>> 436383d... Linux 3.4.63
 			kfree(buf);
 			break;
 		}

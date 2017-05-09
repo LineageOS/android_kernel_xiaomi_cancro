@@ -4,10 +4,7 @@
  *  the HID descriptor.
  *
  *  Copyright (c) 2011, 2013 Stefan Kriwanek <dev@stefankriwanek.de>
-<<<<<<< HEAD
  *  Copyright (C) 2015 XiaoMi, Inc.
-=======
->>>>>>> 436383d... Linux 3.4.63
  */
 
 /*
