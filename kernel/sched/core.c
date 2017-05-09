@@ -1685,7 +1685,7 @@ static void try_to_wake_up_local(struct task_struct *p)
 	if (WARN_ON_ONCE(rq != this_rq()) ||
 	    WARN_ON_ONCE(p == current))
 		return;
-	}
+	
 
 	lockdep_assert_held(&rq->lock);
 
