@@ -4658,7 +4658,6 @@ do_more:
 			ext4_mb_unload_buddy(&e4b);
 			err = -ENOMEM;
 			goto error_return;
-
 		}
 		new_entry->efd_start_cluster = bit;
 		new_entry->efd_group = block_group;
