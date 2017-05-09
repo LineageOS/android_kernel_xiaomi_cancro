@@ -1741,7 +1741,7 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 				w->active ? "active" : "inactive");
 
 	list_for_each_entry(p, &w->sources, list_sink) {
-		if (p->connected && !p->connected(w, p->source))
+		if (p->connected && !p->connected(w, p->sink))
 			continue;
 
 		if (p->connect)
