@@ -103,7 +103,6 @@ static inline void anon_vma_free(struct anon_vma *anon_vma)
 	 * LOCK should suffice since the actual taking of the lock must
 	 * happen _before_ what follows.
 	 */
-	might_sleep();
 	if (mutex_is_locked(&anon_vma->root->mutex)) {
 		anon_vma_lock(anon_vma);
 		anon_vma_unlock(anon_vma);
@@ -477,9 +476,8 @@ struct anon_vma *page_get_anon_vma(struct page *page)
 	 * above cannot corrupt).
 	 */
 	if (!page_mapped(page)) {
-		rcu_read_unlock();
 		put_anon_vma(anon_vma);
-		return NULL;
+		anon_vma = NULL;
 	}
 out:
 	rcu_read_unlock();
@@ -529,9 +527,9 @@ struct anon_vma *page_lock_anon_vma(struct page *page)
 	}
 
 	if (!page_mapped(page)) {
-		rcu_read_unlock();
 		put_anon_vma(anon_vma);
-		return NULL;
+		anon_vma = NULL;
+		goto out;
 	}
 
 	/* we pinned the anon_vma, its safe to sleep */
