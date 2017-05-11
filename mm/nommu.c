@@ -1916,7 +1916,7 @@ EXPORT_SYMBOL(unmap_mapping_range);
  */
 int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
 {
-	long free, allowed;
+	unsigned long free, allowed;
 
 	vm_acct_memory(pages);
 

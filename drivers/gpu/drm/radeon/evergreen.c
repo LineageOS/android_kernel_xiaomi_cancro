@@ -3474,9 +3474,6 @@ int evergreen_init(struct radeon_device *rdev)
 		}
 	}
 
-	/* posting read */
-	RREG32(SRBM_STATUS);
-
 	return 0;
 }
 
