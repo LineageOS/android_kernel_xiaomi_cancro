@@ -2114,7 +2114,8 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 					status = -ECONNRESET;
 				}
 
-			
+			if (last_one)
+				break;
 			} else {
 				dep->flags &= ~DWC3_EP_MISSED_ISOC;
 			}
