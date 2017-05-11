@@ -38,19 +38,6 @@
 
 #define MAJOR_VERSION	1
 #define MINOR_VERSION	6
-#define MINOR_VERSION	8
-
-/*
- * debug = 1 will print all
- */
-static unsigned int debug = 0;
-module_param_named(debug_mask, debug, uint, 0644);
-
-#define dprintk(msg...)		\
-do { 				\
-	if (debug)		\
-		pr_info(msg);	\
-} while (0)
 
 struct workqueue_struct *suspend_work_queue;
 
