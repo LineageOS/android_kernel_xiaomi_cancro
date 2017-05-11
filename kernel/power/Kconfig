@@ -277,3 +277,10 @@ config SUSPEND_TIME
 	  Prints the time spent in suspend in the kernel log, and
 	  keeps statistics on the time spent in suspend in
 	  /sys/kernel/debug/suspend_time
+
+config POWERSUSPEND
+ 	bool "Power suspend"
+ 	default y
+ 	---help---
+ 	  Call early suspend handlers when the user requested sleep state
+ 	  changes.

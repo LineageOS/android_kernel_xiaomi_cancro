@@ -608,11 +608,8 @@ void ipv6_select_ident(struct frag_hdr *fhdr, struct rt6_info *rt)
 		hashrnd_initialized = true;
 		get_random_bytes(&ip6_idents_hashrnd, sizeof(ip6_idents_hashrnd));
 	}
-	hash = __ipv6_addr_jhash(&rt->rt6i_dst.addr, ip6_idents_hashrnd);
-	hash = __ipv6_addr_jhash(&rt->rt6i_src.addr, hash);
-
 	id = ip_idents_reserve(hash, 1);
-	fhdr->identification = htonl(id);
+ 	fhdr->identification = htonl(id);
 }
 
 int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))

@@ -677,7 +677,6 @@ lookup_pi_state(u32 uval, struct futex_hash_bucket *hb,
 			 * Handle the owner died case:
 			 */
 			if (uval & FUTEX_OWNER_DIED) {
-<<<<<<< HEAD
 				/*
 				 * exit_pi_state_list sets owner to NULL and
 				 * wakes the topmost waiter. The task which
