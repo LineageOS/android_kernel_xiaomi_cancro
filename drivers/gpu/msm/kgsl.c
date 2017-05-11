@@ -739,26 +739,37 @@ static int kgsl_resume_device(struct kgsl_device *device)
 	return 0;
 }
 
-void kgsl_early_suspend_driver(struct power_suspend *h)
+static int kgsl_suspend(struct device *dev)
 {
-	struct kgsl_device *device = container_of(h,
-					struct kgsl_device, display_off);
 
 	pm_message_t arg = {0};
-	kgsl_suspend_device(device, arg);
-
-	return;
+	struct kgsl_device *device = dev_get_drvdata(dev);
+	return kgsl_suspend_device(device, arg);
 }
 
-void kgsl_late_resume_driver(struct power_suspend *h)
+static int kgsl_resume(struct device *dev)
 {
-	struct kgsl_device *device = container_of(h,
-					struct kgsl_device, display_off);
-
-	kgsl_resume_device(device);
-
-	return;
+	struct kgsl_device *device = dev_get_drvdata(dev);
+	return kgsl_resume_device(device);
 }
+
+static int kgsl_runtime_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int kgsl_runtime_resume(struct device *dev)
+{
+	return 0;
+}
+
+const struct dev_pm_ops kgsl_pm_ops = {
+	.suspend = kgsl_suspend,
+	.resume = kgsl_resume,
+	.runtime_suspend = kgsl_runtime_suspend,
+	.runtime_resume = kgsl_runtime_resume,
+};
+EXPORT_SYMBOL(kgsl_pm_ops);
 
 int kgsl_suspend_driver(struct platform_device *pdev,
 					pm_message_t state)

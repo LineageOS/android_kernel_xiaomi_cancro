@@ -1039,6 +1039,7 @@ static struct platform_driver z180_platform_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = DEVICE_2D_NAME,
+		.pm = &kgsl_pm_ops,
 	}
 };
 
