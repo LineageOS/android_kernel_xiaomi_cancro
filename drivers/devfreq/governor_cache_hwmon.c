@@ -42,7 +42,6 @@ struct cache_hwmon_node {
 	unsigned int decay_rate;
 	unsigned long prev_mhz;
 	ktime_t prev_ts;
-	bool mon_started;
 	struct list_head list;
 	void *orig_data;
 	struct cache_hwmon *hw;
@@ -169,26 +168,18 @@ static void compute_cache_freq(struct cache_hwmon_node *node,
 }
 
 #define TOO_SOON_US	(1 * USEC_PER_MSEC)
-int update_cache_hwmon(struct cache_hwmon *hwmon)
+static irqreturn_t mon_intr_handler(int irq, void *dev)
 {
-	struct cache_hwmon_node *node;
-	struct devfreq *df;
+	struct cache_hwmon_node *node = dev;
+	struct devfreq *df = node->hw->df;
 	ktime_t ts;
 	unsigned int us;
 	int ret;
 
-	if (!hwmon)
-		return -EINVAL;
-	df = hwmon->df;
-	if (!df)
-		return -ENODEV;
-	node = df->data;
-	if (!node)
-		return -ENODEV;
-	if (!node->mon_started)
-		return -EBUSY;
+	if (!node->hw->is_valid_irq(node->hw))
+		return IRQ_NONE;
 
-	dev_dbg(df->dev.parent, "Got update request\n");
+	dev_dbg(df->dev.parent, "Got interrupt\n");
 	devfreq_monitor_stop(df);
 
 	/*
@@ -210,13 +201,13 @@ int update_cache_hwmon(struct cache_hwmon *hwmon)
 		ret = update_devfreq(df);
 		if (ret)
 			dev_err(df->dev.parent,
-				"Unable to update freq on request!\n");
+				"Unable to update freq on IRQ!\n");
 		mutex_unlock(&df->lock);
 	}
 
 	devfreq_monitor_start(df);
 
-	return 0;
+	return IRQ_HANDLED;
 }
 
 static int devfreq_cache_hwmon_get_freq(struct devfreq *df,
@@ -290,7 +281,15 @@ static int start_monitoring(struct devfreq *df)
 	}
 
 	devfreq_monitor_start(df);
-	node->mon_started = true;
+
+	if (hw->irq)
+		ret = request_threaded_irq(hw->irq, NULL, mon_intr_handler,
+			  IRQF_ONESHOT | IRQF_SHARED,
+			  "cache_hwmon", node);
+	if (ret) {
+		dev_err(dev, "Unable to register interrupt handler!\n");
+		goto req_irq_fail;
+	}
 
 	ret = sysfs_create_group(&df->dev.kobj, &dev_attr_group);
 	if (ret) {
@@ -301,7 +300,11 @@ static int start_monitoring(struct devfreq *df)
 	return 0;
 
 sysfs_fail:
-	node->mon_started = false;
+	if (hw->irq) {
+		disable_irq(hw->irq);
+		free_irq(hw->irq, node);
+	}
+req_irq_fail:
 	devfreq_monitor_stop(df);
 	hw->stop_hwmon(hw);
 err_start:
@@ -317,7 +320,10 @@ static void stop_monitoring(struct devfreq *df)
 	struct cache_hwmon *hw = node->hw;
 
 	sysfs_remove_group(&df->dev.kobj, &dev_attr_group);
-	node->mon_started = false;
+	if (hw->irq) {
+		disable_irq(hw->irq);
+		free_irq(hw->irq, node);
+	}
 	devfreq_monitor_stop(df);
 	hw->stop_hwmon(hw);
 	df->data = node->orig_data;
