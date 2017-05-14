@@ -49,69 +49,6 @@ struct devfreq_node {
 static LIST_HEAD(devfreq_list);
 static DEFINE_MUTEX(state_lock);
 
-#define show_attr(name) \
-static ssize_t show_##name(struct device *dev,				\
-			struct device_attribute *attr, char *buf)	\
-{									\
-	struct devfreq *df = to_devfreq(dev);				\
-	struct devfreq_node *n = df->data;				\
-	return snprintf(buf, PAGE_SIZE, "%u\n", n->name);		\
-}
-
-#define store_attr(name, _min, _max) \
-static ssize_t store_##name(struct device *dev,				\
-			struct device_attribute *attr, const char *buf,	\
-			size_t count)					\
-{									\
-	struct devfreq *df = to_devfreq(dev);				\
-	struct devfreq_node *n = df->data;				\
-	int ret;							\
-	unsigned int val;						\
-	ret = sscanf(buf, "%u", &val);					\
-	if (ret != 1)							\
-		return -EINVAL;						\
-	val = max(val, _min);						\
-	val = min(val, _max);						\
-	n->name = val;							\
-	return count;							\
-}
-
-#define gov_attr(__attr, min, max)	\
-show_attr(__attr)			\
-store_attr(__attr, min, max)		\
-static DEVICE_ATTR(__attr, 0644, show_##__attr, store_##__attr)
-
-static int update_node(struct devfreq_node *node)
-{
-	int ret;
-	struct devfreq *df = node->df;
-
-	if (!df)
-		return 0;
-
-	cancel_delayed_work_sync(&node->dwork);
-
-	mutex_lock(&df->lock);
-	node->drop = false;
-	ret = update_devfreq(df);
-	if (ret) {
-		dev_err(df->dev.parent, "Unable to update frequency\n");
-		goto out;
-	}
-
-	if (!node->timeout)
-		goto out;
-
-	if (df->previous_freq <= df->min_freq)
-		goto out;
-
-	schedule_delayed_work(&node->dwork,
-			      msecs_to_jiffies(node->timeout));
-out:
-	mutex_unlock(&df->lock);
-	return ret;
-}
-
 static void update_all_devfreqs(void)
 {
 	struct devfreq_node *node;
