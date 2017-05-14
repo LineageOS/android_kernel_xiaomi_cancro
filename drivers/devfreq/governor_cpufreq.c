@@ -231,7 +231,7 @@ static int register_cpufreq(void)
 	mutex_lock(&cpufreq_reg_lock);
 
 	if (cpufreq_cnt)
-		goto cnt_not_zero;
+		goto out;
 
 	get_online_cpus();
 	ret = cpufreq_register_notifier(&cpufreq_policy_nb,
@@ -254,9 +254,9 @@ static int register_cpufreq(void)
 			cpufreq_cpu_put(policy);
 		}
 	}
-out:
 	put_online_cpus();
-cnt_not_zero:
+
+out:
 	if (!ret)
 		cpufreq_cnt++;
 	mutex_unlock(&cpufreq_reg_lock);
