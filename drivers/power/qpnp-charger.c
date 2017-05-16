@@ -356,7 +356,6 @@ struct qpnp_chg_chip {
 	int				cool_bat_decidegc;
 	int				fake_battery_soc;
 	int				prev_soc;
-
 	unsigned int			safe_current;
 	unsigned int			revision;
 	unsigned int			type;
@@ -5251,8 +5250,6 @@ qpnp_charger_probe(struct spmi_device *spmi)
 	chip->prev_usb_max_ma = 0;
 	chip->fake_battery_soc = -EINVAL;
 	chip->prev_soc = -EINVAL;
-	chip->prev_usb_max_ma = -EINVAL;
-	chip->fake_battery_soc = -EINVAL;
 	chip->dev = &(spmi->dev);
 	chip->spmi = spmi;
 
