@@ -27,7 +27,7 @@ obj-$(CONFIG_CPU_ABRT_EV6)	+= abort-ev6.o
 obj-$(CONFIG_CPU_ABRT_EV7)	+= abort-ev7.o
 
 AFLAGS_abort-ev6.o	:=-Wa,-march=armv6k
-AFLAGS_abort-ev7.o	:=-Wa,-mcpu=cortex-a15
+AFLAGS_abort-ev7.o	:=-Wa,-march=armv7-a
 
 obj-$(CONFIG_CPU_PABRT_LEGACY)	+= pabort-legacy.o
 obj-$(CONFIG_CPU_PABRT_V6)	+= pabort-v6.o
@@ -42,7 +42,7 @@ obj-$(CONFIG_CPU_CACHE_V7)	+= cache-v7.o
 obj-$(CONFIG_CPU_CACHE_FA)	+= cache-fa.o
 
 AFLAGS_cache-v6.o	:=-Wa,-march=armv6
-AFLAGS_cache-v7.o	:=-Wa,-mcpu=cortex-a15
+AFLAGS_cache-v7.o	:=-Wa,-march=armv7-a
 
 obj-$(CONFIG_CPU_COPY_V3)	+= copypage-v3.o
 obj-$(CONFIG_CPU_COPY_V4WT)	+= copypage-v4wt.o
