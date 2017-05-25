@@ -779,7 +779,7 @@ static int suspend_prepare(struct regulator_dev *rdev, suspend_state_t state)
 static void print_constraints(struct regulator_dev *rdev)
 {
 	struct regulation_constraints *constraints = rdev->constraints;
-	char buf[80] = "";
+	char buf[160] = "";
 	int count = 0;
 	int ret;
 
@@ -1532,6 +1532,8 @@ static int _regulator_enable(struct regulator_dev *rdev)
 
 			trace_regulator_enable_complete(rdev_get_name(rdev));
 
+			_notifier_call_chain(rdev, REGULATOR_EVENT_ENABLE,
+						NULL);
 		} else if (ret < 0) {
 			rdev_err(rdev, "is_enabled() failed: %d\n", ret);
 			return ret;
@@ -3391,6 +3393,8 @@ unset_supplies:
 	unset_regulator_supplies(rdev);
 
 scrub:
+	if (rdev->supply)
+		regulator_put(rdev->supply);
 	kfree(rdev->constraints);
 	device_unregister(&rdev->dev);
 	/* device core frees rdev */

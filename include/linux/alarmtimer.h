@@ -46,6 +46,7 @@ void alarm_init(struct alarm *alarm, enum alarmtimer_type type,
 void alarm_start(struct alarm *alarm, ktime_t start);
 int alarm_try_to_cancel(struct alarm *alarm);
 int alarm_cancel(struct alarm *alarm);
+void set_power_on_alarm(long secs, bool enable);
 
 u64 alarm_forward(struct alarm *alarm, ktime_t now, ktime_t interval);
 
@@ -78,5 +79,8 @@ static inline int alarmtimer_callback_running(struct alarm *timer)
 
 /* Provide way to access the rtc device being used by alarmtimers */
 struct rtc_device *alarmtimer_get_rtcdev(void);
+#ifdef CONFIG_RTC_DRV_QPNP
+extern bool poweron_alarm;
+#endif
 
 #endif

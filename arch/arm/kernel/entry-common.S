@@ -53,9 +53,13 @@ fast_work_pending:
 work_pending:
 	tst	r1, #_TIF_NEED_RESCHED
 	bne	work_resched
-	tst	r1, #_TIF_SIGPENDING|_TIF_NOTIFY_RESUME
-	beq	no_work_pending
+	/*
+	 * TIF_SIGPENDING or TIF_NOTIFY_RESUME must've been set if we got here
+	 */
+	ldr	r2, [sp, #S_PSR]
 	mov	r0, sp				@ 'regs'
+	tst	r2, #15				@ are we returning to user mode?
+	bne	no_work_pending			@ no?  just leave, then...
 	mov	r2, why				@ 'syscall'
 	tst	r1, #_TIF_SIGPENDING		@ delivering a signal?
 	movne	why, #0				@ prevent further restarts
@@ -481,7 +485,8 @@ __sys_trace:
 	mov	scno, r0			@ syscall number (possibly new)
 	add	r1, sp, #S_R0 + S_OFF		@ pointer to regs
 	cmp	scno, #NR_syscalls		@ check upper syscall limit
-	ldmccia	r1, {r0 - r3}			@ have to reload r0 - r3
+	ldmccia	r1, {r0 - r6}			@ have to reload r0 - r6
+	stmccia	sp, {r4, r5}			@ and update the stack args
 	ldrcc	pc, [tbl, scno, lsl #2]		@ call sys_* routine
 	b	2b
 

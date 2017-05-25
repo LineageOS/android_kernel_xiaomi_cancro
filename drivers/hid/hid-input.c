@@ -362,6 +362,9 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 
 		if (ret != 2) {
 			ret = -ENODATA;
+
+			if (ret >= 0)
+				ret = -EINVAL;
 			kfree(buf);
 			break;
 		}
@@ -1174,6 +1177,8 @@ static void report_features(struct hid_device *hid)
 	rep_enum = &hid->report_enum[HID_FEATURE_REPORT];
 	list_for_each_entry(rep, &rep_enum->report_list, list)
 		for (i = 0; i < rep->maxfield; i++) {
+
+
 			/* Ignore if report count is out of bounds. */
 			if (rep->field[i]->report_count < 1)
 				continue;

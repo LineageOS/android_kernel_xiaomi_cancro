@@ -276,7 +276,7 @@ config CMA_SIZE_PERCENTAGE
 
 choice
 	prompt "Selected region size"
-	default CMA_SIZE_SEL_ABSOLUTE
+	default CMA_SIZE_SEL_MBYTES
 
 config CMA_SIZE_SEL_MBYTES
 	bool "Use mega bytes value only"
@@ -312,13 +312,13 @@ config CMA_ALIGNMENT
 
 config CMA_AREAS
 	int "Maximum count of the CMA device-private areas"
-	default 7
+	default 15
 	help
 	  CMA allows to create CMA areas for particular devices. This parameter
 	  sets the maximum number of such device private CMA areas in the
 	  system.
 
-	  If unsure, leave the default value "7".
+	  If unsure, leave the default value "15".
 
 endif
 

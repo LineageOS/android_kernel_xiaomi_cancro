@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -45,23 +45,97 @@ struct devfreq_node {
 	struct list_head list;
 	struct freq_map **map;
 	struct freq_map *common_map;
+	unsigned int timeout;
+	struct delayed_work dwork;
+	bool drop;
+	unsigned long prev_tgt;
 };
 static LIST_HEAD(devfreq_list);
 static DEFINE_MUTEX(state_lock);
+static DEFINE_MUTEX(cpufreq_reg_lock);
+
+#define show_attr(name) \
+static ssize_t show_##name(struct device *dev,				\
+			struct device_attribute *attr, char *buf)	\
+{									\
+	struct devfreq *df = to_devfreq(dev);				\
+	struct devfreq_node *n = df->data;				\
+	return snprintf(buf, PAGE_SIZE, "%u\n", n->name);		\
+}
+
+#define store_attr(name, _min, _max) \
+static ssize_t store_##name(struct device *dev,				\
+			struct device_attribute *attr, const char *buf,	\
+			size_t count)					\
+{									\
+	struct devfreq *df = to_devfreq(dev);				\
+	struct devfreq_node *n = df->data;				\
+	int ret;							\
+	unsigned int val;						\
+	ret = sscanf(buf, "%u", &val);					\
+	if (ret != 1)							\
+		return -EINVAL;						\
+	val = max(val, _min);						\
+	val = min(val, _max);						\
+	n->name = val;							\
+	return count;							\
+}
+
+#define gov_attr(__attr, min, max)	\
+show_attr(__attr)			\
+store_attr(__attr, min, max)		\
+static DEVICE_ATTR(__attr, 0644, show_##__attr, store_##__attr)
+
+static int update_node(struct devfreq_node *node)
+{
+	int ret;
+	struct devfreq *df = node->df;
+
+	if (!df)
+		return 0;
+
+	cancel_delayed_work_sync(&node->dwork);
+
+	mutex_lock(&df->lock);
+	node->drop = false;
+	ret = update_devfreq(df);
+	if (ret) {
+		dev_err(df->dev.parent, "Unable to update frequency\n");
+		goto out;
+	}
+
+	if (!node->timeout)
+		goto out;
+
+	if (df->previous_freq <= df->min_freq)
+		goto out;
+
+	schedule_delayed_work(&node->dwork,
+			      msecs_to_jiffies(node->timeout));
+out:
+	mutex_unlock(&df->lock);
+	return ret;
+}
 
 static void update_all_devfreqs(void)
 {
 	struct devfreq_node *node;
 
 	list_for_each_entry(node, &devfreq_list, list) {
-		struct devfreq *df = node->df;
-		if (!node->df)
-			continue;
-		mutex_lock(&df->lock);
-		update_devfreq(df);
-		mutex_unlock(&df->lock);
-
+		update_node(node);
 	}
+}
+
+static void do_timeout(struct work_struct *work)
+{
+	struct devfreq_node *node = container_of(to_delayed_work(work),
+						struct devfreq_node, dwork);
+	struct devfreq *df = node->df;
+
+	mutex_lock(&df->lock);
+	node->drop = true;
+	update_devfreq(df);
+	mutex_unlock(&df->lock);
 }
 
 static struct devfreq_node *find_devfreq_node(struct device *dev)
@@ -116,8 +190,10 @@ static int cpufreq_policy_notifier(struct notifier_block *nb,
 
 	case CPUFREQ_GOV_STOP:
 		mutex_lock(&state_lock);
-		state[policy->cpu]->on = false;
-		update_all_devfreqs();
+		if (state[policy->cpu]) {
+			state[policy->cpu]->on = false;
+			update_all_devfreqs();
+		}
 		mutex_unlock(&state_lock);
 		break;
 	}
@@ -164,10 +240,10 @@ static int register_cpufreq(void)
 	unsigned int cpu;
 	struct cpufreq_policy *policy;
 
-	mutex_lock(&state_lock);
+	mutex_lock(&cpufreq_reg_lock);
 
 	if (cpufreq_cnt)
-		goto out;
+		goto cnt_not_zero;
 
 	get_online_cpus();
 	ret = cpufreq_register_notifier(&cpufreq_policy_nb,
@@ -190,12 +266,12 @@ static int register_cpufreq(void)
 			cpufreq_cpu_put(policy);
 		}
 	}
-	put_online_cpus();
-
 out:
+	put_online_cpus();
+cnt_not_zero:
 	if (!ret)
 		cpufreq_cnt++;
-	mutex_unlock(&state_lock);
+	mutex_unlock(&cpufreq_reg_lock);
 	return ret;
 }
 
@@ -204,7 +280,7 @@ static int unregister_cpufreq(void)
 	int ret = 0;
 	int cpu;
 
-	mutex_lock(&state_lock);
+	mutex_lock(&cpufreq_reg_lock);
 
 	if (cpufreq_cnt > 1)
 		goto out;
@@ -224,7 +300,7 @@ static int unregister_cpufreq(void)
 
 out:
 	cpufreq_cnt--;
-	mutex_unlock(&state_lock);
+	mutex_unlock(&cpufreq_reg_lock);
 	return ret;
 }
 
@@ -282,7 +358,7 @@ static unsigned int cpu_to_dev_freq(struct devfreq *df, unsigned int cpu)
 	freq = map->target_freq;
 
 out:
-	pr_debug("CPU%u: %d -> dev: %u\n", cpu, cpu_khz, freq);
+	dev_dbg(df->dev.parent, "CPU%u: %d -> dev: %u\n", cpu, cpu_khz, freq);
 	return freq;
 }
 
@@ -299,10 +375,21 @@ static int devfreq_cpufreq_get_freq(struct devfreq *df,
 		return -ENODEV;
 	}
 
+	if (node->drop) {
+		*freq = 0;
+		return 0;
+	}
+
 	for_each_possible_cpu(cpu)
 		tgt_freq = max(tgt_freq, cpu_to_dev_freq(df, cpu));
 
-	*freq = tgt_freq;
+	if (node->timeout && tgt_freq < node->prev_tgt)
+		*freq = 0;
+	else
+		*freq = tgt_freq;
+
+	node->prev_tgt = tgt_freq;
+
 	return 0;
 }
 
@@ -361,8 +448,11 @@ static ssize_t show_map(struct device *dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(freq_map, 0444, show_map, NULL);
+gov_attr(timeout, 0U, 100U);
+
 static struct attribute *dev_attr[] = {
 	&dev_attr_freq_map.attr,
+	&dev_attr_timeout.attr,
 	NULL,
 };
 
@@ -401,17 +491,16 @@ static int devfreq_cpufreq_gov_start(struct devfreq *devfreq)
 		node->dev = devfreq->dev.parent;
 		list_add_tail(&node->list, &devfreq_list);
 	}
+
+	INIT_DELAYED_WORK(&node->dwork, do_timeout);
+
 	node->df = devfreq;
 	node->orig_data = devfreq->data;
 	devfreq->data = node;
 
-	mutex_lock(&devfreq->lock);
-	ret = update_devfreq(devfreq);
-	mutex_unlock(&devfreq->lock);
-	if (ret) {
-		pr_err("Freq update failed!\n");
+	ret = update_node(node);
+	if (ret)
 		goto update_fail;
-	}
 
 	mutex_unlock(&state_lock);
 	return 0;
@@ -432,6 +521,8 @@ alloc_fail:
 static void devfreq_cpufreq_gov_stop(struct devfreq *devfreq)
 {
 	struct devfreq_node *node = devfreq->data;
+
+	cancel_delayed_work_sync(&node->dwork);
 
 	mutex_lock(&state_lock);
 	devfreq->data = node->orig_data;
@@ -576,7 +667,6 @@ static int __init devfreq_cpufreq_init(void)
 				pr_err("Parsing %s failed!\n", of_child->name);
 			else
 				pr_debug("Parsed %s.\n", of_child->name);
-			of_node_put(of_child);
 		}
 		of_node_put(of_par);
 	} else {

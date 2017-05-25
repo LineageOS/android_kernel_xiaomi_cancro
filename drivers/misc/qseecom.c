@@ -1183,7 +1183,7 @@ static int qseecom_unload_app(struct qseecom_dev_handle *data,
 			return -EFAULT;
 		}
 		if (resp.result == QSEOS_RESULT_SUCCESS)
-			pr_info("App (%d) is unloaded!!\n",
+			pr_debug("App (%d) is unloaded!!\n",
 					data->client.app_id);
 		__qseecom_cleanup_app(data);
 		if (resp.result == QSEOS_RESULT_INCOMPLETE) {
@@ -1204,10 +1204,10 @@ static int qseecom_unload_app(struct qseecom_dev_handle *data,
 		} else {
 			if (ptr_app->ref_cnt == 1) {
 				ptr_app->ref_cnt = 0;
-				pr_info("ref_count set to 0\n");
+				pr_debug("ref_count set to 0\n");
 			} else {
 				ptr_app->ref_cnt--;
-				pr_info("Can't unload app(%d) inuse\n",
+				pr_debug("Can't unload app(%d) inuse\n",
 					ptr_app->app_id);
 			}
 		}
@@ -4134,7 +4134,7 @@ static int qseecom_release(struct inode *inode, struct file *file)
 	int ret = 0;
 
 	if (data->released == false) {
-		pr_warn("data: released = false, type = %d, data = 0x%x\n",
+		pr_debug("data: released = false, type = %d, data = 0x%x\n",
 			data->type, (u32)data);
 		switch (data->type) {
 		case QSEECOM_LISTENER_SERVICE:
@@ -4604,8 +4604,7 @@ static int qseecom_suspend(struct platform_device *pdev, pm_message_t state)
 	mutex_lock(&qsee_bw_mutex);
 	mutex_lock(&clk_access_lock);
 
-	if (qseecom.cumulative_mode != INACTIVE &&
-		qseecom.current_mode != INACTIVE) {
+	if (qseecom.current_mode != INACTIVE) {
 		ret = msm_bus_scale_client_update_request(
 			qseecom.qsee_perf_client, INACTIVE);
 		if (ret)

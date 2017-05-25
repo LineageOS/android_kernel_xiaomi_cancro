@@ -187,7 +187,7 @@ struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned flags,
 		skb_queue_walk(queue, skb) {
 			*peeked = skb->peeked;
 			if (flags & MSG_PEEK) {
-				if (*off >= skb->len) {
+				if (*off >= skb->len && skb->len) {
 					*off -= skb->len;
 					continue;
 				}
@@ -660,7 +660,8 @@ __sum16 __skb_checksum_complete_head(struct sk_buff *skb, int len)
 	if (likely(!sum)) {
 		if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE))
 			netdev_rx_csum_fault(skb->dev);
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
+		if (!skb_shared(skb))
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 	return sum;
 }

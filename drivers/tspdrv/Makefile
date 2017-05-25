@@ -30,7 +30,7 @@ ifeq ($(KERNEL_ROOT),)
     override KERNEL_ROOT = /usr/src/linux
 endif
 
-EXTRA_CFLAGS += -I$(M)
+EXTRA_CFLAGS += -I$(shell pwd)
 
 obj-$(CONFIG_TSPDRV) += tspdrv.o
 

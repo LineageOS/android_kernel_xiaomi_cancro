@@ -132,7 +132,7 @@ unsigned int msm_spm_get_vdd(unsigned int cpu)
 EXPORT_SYMBOL(msm_spm_get_vdd);
 
 static int msm_spm_dev_set_low_power_mode(struct msm_spm_device *dev,
-		unsigned int mode, bool notify_rpm)
+		unsigned int mode, bool notify_rpm, bool pc_mode)
 {
 	uint32_t i;
 	uint32_t start_addr = 0;
@@ -152,7 +152,7 @@ static int msm_spm_dev_set_low_power_mode(struct msm_spm_device *dev,
 			}
 		}
 		ret = msm_spm_drv_set_low_power_mode(&dev->reg_data,
-					start_addr);
+					start_addr, pc_mode);
 	}
 	return ret;
 }
@@ -203,37 +203,40 @@ spm_failed_malloc:
 
 /**
  * msm_spm_turn_on_cpu_rail(): Power on cpu rail before turning on core
+ * @base: core 0's base SAW address
  * @cpu: core id
  */
-int msm_spm_turn_on_cpu_rail(unsigned int cpu)
+int msm_spm_turn_on_cpu_rail(unsigned long base, unsigned int cpu)
 {
 	uint32_t val = 0;
-	uint32_t timeout = 0;
+	uint32_t timeout = 512; /* delay for voltage to settle on the core */
 	void *reg = NULL;
-	void *saw_bases[] = {
-		0,
-		MSM_SAW1_BASE,
-		MSM_SAW2_BASE,
-		MSM_SAW3_BASE
-	};
 
 	if (cpu == 0 || cpu >= num_possible_cpus())
 		return -EINVAL;
 
-	reg = saw_bases[cpu];
+	reg = ioremap_nocache(base + (cpu * 0x10000), SZ_4K);
+	if (!reg)
+		return -ENOMEM;
 
-	if (soc_class_is_msm8960() || soc_class_is_msm8930() ||
-	    soc_class_is_apq8064()) {
-		val = 0xA4;
-		reg += 0x14;
-		timeout = 512;
-	} else {
-		return -ENOSYS;
-	}
+	reg += 0x1C;
 
+	/*
+	 * Set FTS2 type CPU supply regulator to 1.15 V. This assumes that the
+	 * regulator is already configured in LV range.
+	 */
+	val = 0x40000E6;
 	writel_relaxed(val, reg);
 	mb();
 	udelay(timeout);
+
+	/* Enable CPU supply regulator */
+	val = 0x2030080;
+	writel_relaxed(val, reg);
+	mb();
+	udelay(timeout);
+
+	iounmap(reg);
 
 	return 0;
 }
@@ -255,7 +258,8 @@ EXPORT_SYMBOL(msm_spm_reinit);
 int msm_spm_set_low_power_mode(unsigned int mode, bool notify_rpm)
 {
 	struct msm_spm_device *dev = &__get_cpu_var(msm_cpu_spm_device);
-	return msm_spm_dev_set_low_power_mode(dev, mode, notify_rpm);
+	bool pc_mode = (mode == MSM_SPM_MODE_POWER_COLLAPSE) ? true : false;
+	return msm_spm_dev_set_low_power_mode(dev, mode, notify_rpm, pc_mode);
 }
 EXPORT_SYMBOL(msm_spm_set_low_power_mode);
 
@@ -294,8 +298,13 @@ int __init msm_spm_init(struct msm_spm_platform_data *data, int nr_devs)
  */
 int msm_spm_l2_set_low_power_mode(unsigned int mode, bool notify_rpm)
 {
+	bool pc_mode = true;
+
+	if (mode == MSM_SPM_L2_MODE_DISABLED ||
+		mode == MSM_SPM_L2_MODE_RETENTION)
+		pc_mode = false;
 	return msm_spm_dev_set_low_power_mode(
-			&msm_spm_l2_device, mode, notify_rpm);
+			&msm_spm_l2_device, mode, notify_rpm, pc_mode);
 }
 EXPORT_SYMBOL(msm_spm_l2_set_low_power_mode);
 

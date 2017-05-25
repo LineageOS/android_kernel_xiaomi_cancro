@@ -2464,6 +2464,8 @@ retry:
 	 * to journalling the i_disksize update if writes to the end
 	 * of file which has an already mapped buffer.
 	 */
+
+retry_journal:
 	handle = ext4_journal_start(inode,
 				ext4_da_write_credits(inode, pos, len));
 	if (IS_ERR(handle)) {

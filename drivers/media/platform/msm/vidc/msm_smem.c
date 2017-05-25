@@ -226,7 +226,7 @@ static int alloc_ion_mem(struct smem_client *client, size_t size, u32 align,
 	mem->buffer_type = buffer_type;
 	if (map_kernel) {
 		mem->kvaddr = ion_map_kernel(client->clnt, hndl);
-		if (!mem->kvaddr) {
+		if (IS_ERR(mem->kvaddr) || !mem->kvaddr) {
 			dprintk(VIDC_ERR,
 				"Failed to map shared mem in kernel\n");
 			rc = -EIO;
@@ -325,6 +325,16 @@ struct msm_smem *msm_smem_user_to_kernel(void *clt, int fd, u32 offset,
 		mem = NULL;
 	}
 	return mem;
+}
+
+bool msm_smem_compare_buffers(void *clt, int fd, void *priv) {
+	struct smem_client *client = clt;
+	struct ion_handle *handle = NULL;
+	bool ret = false;
+	handle = ion_import_dma_buf(client->clnt, fd);
+	ret = handle == priv;
+	handle ? ion_free(client->clnt, handle) : 0;
+	return ret;
 }
 
 static int ion_cache_operations(struct smem_client *client,

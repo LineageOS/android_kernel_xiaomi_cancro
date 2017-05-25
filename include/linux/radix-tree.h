@@ -223,6 +223,10 @@ void *radix_tree_delete(struct radix_tree_root *, unsigned long);
 unsigned int
 radix_tree_gang_lookup(struct radix_tree_root *root, void **results,
 			unsigned long first_index, unsigned int max_items);
+unsigned int
+radix_tree_gang_lookup_index(struct radix_tree_root *root, void **results,
+			unsigned long *indices, unsigned long first_index,
+			unsigned int max_items);
 unsigned int radix_tree_gang_lookup_slot(struct radix_tree_root *root,
 			void ***results, unsigned long *indices,
 			unsigned long first_index, unsigned int max_items);
@@ -322,6 +326,22 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
 			     struct radix_tree_iter *iter, unsigned flags);
 
 /**
+ * radix_tree_iter_retry - retry this chunk of the iteration
+ * @iter:	iterator state
+ *
+ * If we iterate over a tree protected only by the RCU lock, a race
+ * against deletion or creation may result in seeing a slot for which
+ * radix_tree_deref_retry() returns true.  If so, call this function
+ * and continue the iteration.
+ */
+static inline __must_check
+void **radix_tree_iter_retry(struct radix_tree_iter *iter)
+{
+	iter->next_index = iter->index;
+	return NULL;
+}
+
+/**
  * radix_tree_chunk_size - get current chunk size
  *
  * @iter:	pointer to radix tree iterator
@@ -368,8 +388,11 @@ radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
 			iter->index++;
 			if (likely(*slot))
 				return slot;
-			if (flags & RADIX_TREE_ITER_CONTIG)
+			if (flags & RADIX_TREE_ITER_CONTIG) {
+				/* forbid switching to the next chunk */
+				iter->next_index = 0;
 				break;
+			}
 		}
 	}
 	return NULL;

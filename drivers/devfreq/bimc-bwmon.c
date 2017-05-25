@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -196,7 +196,8 @@ static int start_bw_hwmon(struct bw_hwmon *hw, unsigned long mbps)
 				  IRQF_ONESHOT | IRQF_SHARED,
 				  dev_name(m->dev), m);
 	if (ret) {
-		dev_err(m->dev, "Unable to register interrupt handler!\n");
+		dev_err(m->dev, "Unable to register interrupt handler! (%d)\n",
+				ret);
 		return ret;
 	}
 
@@ -217,12 +218,43 @@ static void stop_bw_hwmon(struct bw_hwmon *hw)
 {
 	struct bwmon *m = to_bwmon(hw);
 
-	disable_irq(m->irq);
 	free_irq(m->irq, m);
 	mon_disable(m);
 	mon_irq_disable(m);
 	mon_irq_clear(m);
 	mon_clear(m);
+}
+
+static int suspend_bw_hwmon(struct bw_hwmon *hw)
+{
+	struct bwmon *m = to_bwmon(hw);
+
+	free_irq(m->irq, m);
+	mon_disable(m);
+	mon_irq_disable(m);
+	mon_irq_clear(m);
+
+	return 0;
+}
+
+static int resume_bw_hwmon(struct bw_hwmon *hw)
+{
+	struct bwmon *m = to_bwmon(hw);
+	int ret;
+
+	mon_clear(m);
+	mon_irq_enable(m);
+	mon_enable(m);
+	ret = request_threaded_irq(m->irq, NULL, bwmon_intr_handler,
+				  IRQF_ONESHOT | IRQF_SHARED,
+				  dev_name(m->dev), m);
+	if (ret) {
+		dev_err(m->dev, "Unable to register interrupt handler! (%d)\n",
+				ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 /*************************************************************************/
@@ -278,9 +310,11 @@ static int bimc_bwmon_driver_probe(struct platform_device *pdev)
 	m->hw.of_node = of_parse_phandle(dev->of_node, "qcom,target-dev", 0);
 	if (!m->hw.of_node)
 		return -EINVAL;
-	m->hw.start_hwmon = &start_bw_hwmon,
-	m->hw.stop_hwmon = &stop_bw_hwmon,
-	m->hw.meas_bw_and_set_irq = &meas_bw_and_set_irq,
+	m->hw.start_hwmon = &start_bw_hwmon;
+	m->hw.stop_hwmon = &stop_bw_hwmon;
+	m->hw.suspend_hwmon = &suspend_bw_hwmon;
+	m->hw.resume_hwmon = &resume_bw_hwmon;
+	m->hw.meas_bw_and_set_irq = &meas_bw_and_set_irq;
 
 	ret = register_bw_hwmon(dev, &m->hw);
 	if (ret) {

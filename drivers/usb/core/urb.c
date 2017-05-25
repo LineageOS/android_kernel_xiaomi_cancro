@@ -684,9 +684,12 @@ EXPORT_SYMBOL_GPL(usb_unpoison_urb);
  * usb_block_urb - reliably prevent further use of an URB
  * @urb: pointer to URB to be blocked, may be NULL
  *
+<<<<<<< HEAD
  * usb_block_urb - reliably prevent further use of an URB
  * @urb: pointer to URB to be blocked, may be NULL
  *
+=======
+>>>>>>> 965fd14... Linux 3.4.1
  * After the routine has run, attempts to resubmit the URB will fail
  * with error -EPERM.  Thus even if the URB's completion handler always
  * tries to resubmit, it will not succeed and the URB will become idle.

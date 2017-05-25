@@ -42,6 +42,7 @@
 #include <mach/scm.h>
 #include <linux/sched.h>
 
+
 #define MAX_CURRENT_UA 1000000
 #define MAX_RAILS 5
 #define MAX_THRESHOLD 2
@@ -752,9 +753,12 @@ static int vdd_restriction_apply_all(int en)
 	int ret = 0;
 
 	for (i = 0; i < rails_cnt; i++) {
-		if (rails[i].freq_req == 1 && freq_table_get)
-			ret = vdd_restriction_apply_freq(&rails[i],
+		if (rails[i].freq_req == 1)
+			if (freq_table_get)
+				ret = vdd_restriction_apply_freq(&rails[i],
 					en ? 0 : -1);
+			else
+				continue;
 		else
 			ret = vdd_restriction_apply_voltage(&rails[i],
 					en ? 0 : -1);
@@ -792,7 +796,7 @@ static int msm_thermal_get_freq_table(void)
 	int i = 0;
 
 	table = cpufreq_frequency_get_table(0);
-	if (table == NULL) {
+	if (!table) {
 		pr_err("error reading cpufreq table\n");
 		ret = -EINVAL;
 		goto fail;
@@ -1107,6 +1111,11 @@ static __ref int do_hotplug(void *data)
 {
 	return 0;
 }
+
+static int __ref update_offline_cores(int val)
+{
+	return 0;
+}
 #endif
 
 static int do_ocr(void)
@@ -1323,6 +1332,7 @@ static void check_temp(struct work_struct *work)
 
 	if (!msm_thermal_probed)
 		return;
+
 
 	do_therm_reset();
 
@@ -1766,7 +1776,9 @@ static __ref int do_thermal_monitor(void *data)
 	struct therm_threshold *sensor_list;
 
 	while (!kthread_should_stop()) {
-		wait_for_completion(&thermal_monitor_complete);
+		while (wait_for_completion_interruptible(
+			&thermal_monitor_complete) != 0)
+			;
 		INIT_COMPLETION(thermal_monitor_complete);
 
 		for (i = 0; i < MSM_LIST_MAX_NR; i++) {
@@ -1838,8 +1850,7 @@ static int init_threshold(enum msm_thresh_list index,
 		goto init_thresh_exit;
 	}
 	if (thresh[index].thresh_list) {
-		pr_err("threshold id:%d already initialized\n", index);
-		ret = -EEXIST;
+		pr_info("threshold id:%d already initialized\n", index);
 		goto init_thresh_exit;
 	}
 
@@ -1970,6 +1981,7 @@ static ssize_t __ref store_cc_enabled(struct kobject *kobj,
 {
 	int ret = 0;
 	int val = 0;
+	uint32_t cpu = 0;
 
 	ret = kstrtoint(buf, 10, &val);
 	if (ret) {
@@ -1984,10 +1996,23 @@ static ssize_t __ref store_cc_enabled(struct kobject *kobj,
 	if (core_control_enabled) {
 		pr_info("Core control enabled\n");
 		register_cpu_notifier(&msm_thermal_cpu_notifier);
-		if (hotplug_task)
-			complete(&hotplug_notify_complete);
-		else
-			pr_err("Hotplug task is not initialized\n");
+		/*
+		 * Re-evaluate thermal core condition, update current status
+		 * and set threshold for all cpus.
+		 */
+		hotplug_init_cpu_offlined();
+		mutex_lock(&core_control_mutex);
+		update_offline_cores(cpus_offlined);
+		if (hotplug_enabled) {
+			for_each_possible_cpu(cpu) {
+				if (!(msm_thermal_info.core_control_mask &
+					BIT(cpus[cpu].cpu)))
+					continue;
+				set_threshold(cpus[cpu].sensor_id,
+				&cpus[cpu].threshold[HOTPLUG_THRESHOLD_HIGH]);
+			}
+		}
+		mutex_unlock(&core_control_mutex);
 	} else {
 		pr_info("Core control disabled\n");
 		unregister_cpu_notifier(&msm_thermal_cpu_notifier);
@@ -3119,6 +3144,9 @@ int __init msm_thermal_device_init(void)
 
 int __init msm_thermal_late_init(void)
 {
+	if (!msm_thermal_probed)
+		return 0;
+
 	if (num_possible_cpus() > 1)
 		msm_thermal_add_cc_nodes();
 	msm_thermal_add_psm_nodes();
